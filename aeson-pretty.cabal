@@ -42,7 +42,7 @@ executable aeson-pretty
         vector >= 0.7,
         text
 
-    ghc-options: -Wall -O2
+    ghc-options: -Wall
     ghc-prof-options: -auto-all
     
 library
@@ -61,7 +61,7 @@ library
         vector >= 0.7,
         text
 
-    ghc-options: -Wall -O2
+    ghc-options: -Wall
 
 source-repository head
     type:     git
