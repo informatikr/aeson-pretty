@@ -25,16 +25,16 @@ encodePretty = toLazyByteString . fromValue 0
 fromValue :: Indent -> Value -> Builder
 fromValue lvl = go
   where
-    go (Array v)  = renderCompound lvl ('[',']') renderListItem (toList v)
-    go (Object v) = renderCompound lvl ('{','}') renderPair (assocs v)
+    go (Array v)  = fromCompound lvl ('[',']') fromListItem (toList v)
+    go (Object v) = fromCompound lvl ('{','}') fromPair (assocs v)
     go v          = Aeson.fromValue v
 
-renderCompound :: Indent
+fromCompound :: Indent
                -> (Char, Char)
                -> (Indent -> a -> Builder)
                -> [a]
                -> Builder
-renderCompound lvl (delimL,delimR) render content =    
+fromCompound lvl (delimL,delimR) render content =    
     fromChar delimL `mappend` content' `mappend` fromChar delimR
   where
     content' = if null content then mempty
@@ -47,11 +47,11 @@ renderCompound lvl (delimL,delimR) render content =
                     ]
     newLine  = fromChar '\n'
 
-renderListItem :: Indent -> Value -> Builder
-renderListItem lvl v = indent lvl `mappend` fromValue lvl v
+fromListItem :: Indent -> Value -> Builder
+fromListItem lvl v = indent lvl `mappend` fromValue lvl v
 
-renderPair :: Indent -> (Text, Value) -> Builder
-renderPair lvl (k,v) =
+fromPair :: Indent -> (Text, Value) -> Builder
+fromPair lvl (k,v) =
     mconcat [ indent lvl
             , Aeson.fromValue (toJSON k)
             , fromByteString ": "
