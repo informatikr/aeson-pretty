@@ -17,30 +17,41 @@ description:
     A JSON pretty-printing library compatible with aeson as well as
     a command-line tool to improve readabilty of streams of JSON data.
     .
-    The library provides a single function "encodePretty". It is a drop-in
-    replacement for aeson's "encode" function, producing JSON-ByteStrings for 
-    human readers.
+    * The library provides a single function "encodePretty". It is a drop-in
+      replacement for aeson's "encode" function, producing JSON-ByteStrings
+      for human readers.
     .
-    The command-line tool reads JSON from stdin and writes prettified JSON
-    to stdout. It also offers a complementary "compact"-mode, essentially the
-    opposite of pretty-printing.
+    * The command-line tool reads JSON from stdin and writes prettified JSON
+      to stdout. It also offers a complementary "compact"-mode, essentially
+      the opposite of pretty-printing. If you specify @-flib-only@ like this
+    .
+      > cabal install -flib-only aeson-pretty
+    .
+      the command-line tool will NOT be installed.
 
 extra-source-files:
     README.markdown
 
+flag lib-only
+    description: Only build/install the library, NOT the command-line tool.
+    default: False
+
 executable aeson-pretty
     main-is: Main.hs
 
-    build-depends:
-        aeson == 0.3.2.*,
-        attoparsec >= 0.8.6.1,
-        base == 4.*,
-        blaze-builder >= 0.2.1.4,
-        bytestring == 0.9.*,
-        cmdargs == 0.7.*,
-        containers,
-        vector >= 0.7,
-        text
+    if flag(lib-only)
+        buildable: False
+    else
+        build-depends:
+            aeson == 0.3.2.*,
+            attoparsec >= 0.8.6.1,
+            base == 4.*,
+            blaze-builder >= 0.2.1.4,
+            bytestring == 0.9.*,
+            cmdargs == 0.7.*,
+            containers,
+            vector >= 0.7,
+            text
 
     ghc-options: -Wall
     ghc-prof-options: -auto-all
