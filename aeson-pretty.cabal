@@ -1,5 +1,5 @@
 name:           aeson-pretty
-version:        0.2
+version:        0.2.1
 license:        BSD3
 license-file:   LICENSE
 category:       Text, Web, JSON
@@ -17,17 +17,17 @@ description:
     A JSON pretty-printing library compatible with aeson as well as
     a command-line tool to improve readabilty of streams of JSON data.
     .
-    * The library provides a single function "encodePretty". It is a drop-in
-      replacement for aeson's "encode" function, producing JSON-ByteStrings
-      for human readers.
+    The /library/ provides a single function "encodePretty". It is a drop-in
+    replacement for aeson's "encode" function, producing JSON-ByteStrings for
+    human readers.
     .
-    * The command-line tool reads JSON from stdin and writes prettified JSON
-      to stdout. It also offers a complementary "compact"-mode, essentially
-      the opposite of pretty-printing. If you specify @-flib-only@ like this
+    The /command-line tool/ reads JSON from stdin and writes prettified JSON
+    to stdout. It also offers a complementary "compact"-mode, essentially the
+    opposite of pretty-printing. If you specify @-flib-only@ like this
     .
-      > cabal install -flib-only aeson-pretty
+        > cabal install -flib-only aeson-pretty
     .
-      the command-line tool will NOT be installed.
+    the command-line tool will NOT be installed.
 
 extra-source-files:
     README.markdown
