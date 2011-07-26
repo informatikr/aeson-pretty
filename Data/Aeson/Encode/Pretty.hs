@@ -19,8 +19,8 @@ type Indent = Int
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
 --  JSON-ByteStrings for human readers.
-encodePretty :: Value -> ByteString
-encodePretty = toLazyByteString . fromValue 0
+encodePretty :: ToJSON a => a -> ByteString
+encodePretty = toLazyByteString . fromValue 0 . toJSON
 
 fromValue :: Indent -> Value -> Builder
 fromValue lvl = go
