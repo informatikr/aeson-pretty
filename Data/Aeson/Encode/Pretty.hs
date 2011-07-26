@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- |Aeson-compatible pretty-printing of JSON 'Value's.
 module Data.Aeson.Encode.Pretty (encodePretty) where
@@ -23,10 +23,10 @@ encodePretty :: ToJSON a => a -> ByteString
 encodePretty = toLazyByteString . fromValue 0 . toJSON
 
 fromValue :: Indent -> Value -> Builder
-fromValue lvl = go
+fromValue ind = go
   where
-    go (Array v)  = fromCompound lvl ('[',']') fromListItem (toList v)
-    go (Object v) = fromCompound lvl ('{','}') fromPair (assocs v)
+    go (Array v)  = fromCompound ind ('[',']') fromValue (toList v)
+    go (Object v) = fromCompound ind ('{','}') fromPair (assocs v)
     go v          = Aeson.fromValue v
 
 fromCompound :: Indent
@@ -34,29 +34,27 @@ fromCompound :: Indent
                -> (Indent -> a -> Builder)
                -> [a]
                -> Builder
-fromCompound lvl (delimL,delimR) render content =    
-    fromChar delimL `mappend` content' `mappend` fromChar delimR
+fromCompound ind (delimL,delimR) fromItem items =    
+    fromChar delimL `mappend` items' `mappend` fromChar delimR
   where
-    content' = if null content then mempty
+    newLine = fromChar '\n'
+    items'  = if null items then mempty
                 else mconcat
                     [ newLine
                     , mconcat . intersperse (fromChar ',' `mappend` newLine) $
-                        map (render $ lvl+1) content
+                        map (\i -> fromIndent (ind+1) `mappend`
+                                   fromItem (ind+1) i)
+                            items
                     , newLine
-                    , indent lvl
+                    , fromIndent ind
                     ]
-    newLine  = fromChar '\n'
-
-fromListItem :: Indent -> Value -> Builder
-fromListItem lvl v = indent lvl `mappend` fromValue lvl v
 
 fromPair :: Indent -> (Text, Value) -> Builder
-fromPair lvl (k,v) =
-    mconcat [ indent lvl
-            , Aeson.fromValue (toJSON k)
+fromPair ind (k,v) =
+    mconcat [ Aeson.fromValue (toJSON k)
             , fromByteString ": "
-            , fromValue lvl v
+            , fromValue ind v
             ]
 
-indent :: Indent -> Builder
-indent lvl = mconcat $ replicate (lvl*4) $ fromChar ' '
+fromIndent :: Indent -> Builder
+fromIndent ind = mconcat $ replicate (ind*4) $ fromChar ' '
