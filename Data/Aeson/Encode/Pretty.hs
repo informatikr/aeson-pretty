@@ -30,10 +30,10 @@ fromValue ind = go
     go v          = Aeson.fromValue v
 
 fromCompound :: Indent
-               -> (Char, Char)
-               -> (Indent -> a -> Builder)
-               -> [a]
-               -> Builder
+             -> (Char, Char)
+             -> (Indent -> a -> Builder)
+             -> [a]
+             -> Builder
 fromCompound ind (delimL,delimR) fromItem items =    
     fromChar delimL `mappend` items' `mappend` fromChar delimR
   where
