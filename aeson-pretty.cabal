@@ -2,7 +2,7 @@ name:           aeson-pretty
 version:        0.2.1
 license:        BSD3
 license-file:   LICENSE
-category:       Text, Web, JSON
+category:       Text, Web, JSON, Pretty Printer
 copyright:      Copyright 2011 Falko Peters
 author:         Falko Peters <falko.peters@gmail.com>
 maintainer:     Falko Peters <falko.peters@gmail.com>
