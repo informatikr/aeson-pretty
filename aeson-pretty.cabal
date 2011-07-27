@@ -1,5 +1,5 @@
 name:           aeson-pretty
-version:        0.3
+version:        0.3.1
 license:        BSD3
 license-file:   LICENSE
 category:       Text, Web, JSON, Pretty Printer
@@ -44,9 +44,9 @@ executable aeson-pretty
     else
         build-depends:
             aeson == 0.3.2.*,
-            attoparsec >= 0.8.6.1,
+            attoparsec >= 0.9.1,
             base == 4.*,
-            blaze-builder >= 0.2.1.4,
+            blaze-builder >= 0.3,
             bytestring == 0.9.*,
             cmdargs == 0.7.*,
             containers,
@@ -64,9 +64,9 @@ library
 
     build-depends:
         aeson == 0.3.2.*,
-        attoparsec >= 0.8.6.1,
+        attoparsec >= 0.9.1,
         base == 4.*,
-        blaze-builder >= 0.2.1.4,
+        blaze-builder >= 0.3,
         bytestring == 0.9.*,
         containers,
         vector >= 0.7,
