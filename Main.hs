@@ -1,12 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable, RecordWildCards, OverloadedStrings #-}
 module Main (main) where
 
-import Prelude hiding (interact, concat)
-import Data.Aeson (Value(..), json, encode)
+import Prelude hiding (interact, concat, unlines, null)
+import Data.Aeson (Value(..), json', encode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Attoparsec.Lazy (Result(..), parse)
-import Data.ByteString.Lazy (ByteString, interact, concat, append)
-import qualified Data.ByteString.Lazy as L (null)
+import Data.ByteString.Lazy.Char8 (ByteString, interact, unlines, null)
 import Data.Version (showVersion)
 import Paths_aeson_pretty (version)
 import System.Console.CmdArgs
@@ -39,11 +38,11 @@ main :: IO ()
 main = do
     Opts{..} <- cmdArgs opts
     let enc = if compact then encode else encodePretty
-    interact $ concat . map ((`append` "\n") . enc) . values
+    interact $ unlines . map enc . values
 
 values :: ByteString -> [Value]
-values s = case parse json s of
-            Done rest v       -> v : values rest
+values s = case parse json' s of
+            Done rest v     -> v : values rest
             Fail rest _ _
-                | L.null rest -> []
-                | otherwise   -> error "invalid json"
+                | null rest -> []
+                | otherwise -> error "invalid json"
