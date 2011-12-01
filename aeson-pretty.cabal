@@ -43,15 +43,16 @@ executable aeson-pretty
         buildable: False
     else
         build-depends:
-            aeson == 0.3.2.*,
-            attoparsec >= 0.9.1,
+            aeson == 0.4.0.*,
+            attoparsec == 0.10.*,
             base == 4.*,
-            blaze-builder >= 0.3,
+            blaze-builder == 0.3.*,
             bytestring == 0.9.*,
             cmdargs == 0.7.*,
             containers,
-            vector >= 0.7,
-            text
+            vector == 0.9,
+            text == 0.11.*,
+            unordered-containers >= 0.1.3.0
 
     ghc-options: -Wall
     ghc-prof-options: -auto-all
@@ -60,17 +61,16 @@ library
     exposed-modules:
         Data.Aeson.Encode.Pretty
 
-    other-modules:
-
     build-depends:
-        aeson == 0.3.2.*,
-        attoparsec >= 0.9.1,
+        aeson == 0.4.0.*,
+        attoparsec == 0.10.*,
         base == 4.*,
-        blaze-builder >= 0.3,
+        blaze-builder == 0.3.*,
         bytestring == 0.9.*,
         containers,
-        vector >= 0.7,
-        text
+        vector == 0.9,
+        text == 0.11.*,
+        unordered-containers >= 0.1.3.0
 
     ghc-options: -Wall
 

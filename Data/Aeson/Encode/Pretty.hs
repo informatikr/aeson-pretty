@@ -8,11 +8,11 @@ import Blaze.ByteString.Builder.Char.Utf8 (fromChar)
 import Data.Aeson (Value(..), ToJSON(..))
 import qualified Data.Aeson.Encode as Aeson
 import Data.ByteString.Lazy (ByteString)
+import qualified Data.HashMap.Strict as H (toList)
 import Data.List (intersperse)
-import Data.Map (assocs)
 import Data.Monoid (mappend, mconcat, mempty)
 import Data.Text (Text)
-import Data.Vector (toList)
+import qualified Data.Vector as V (toList)
 
 
 type Indent = Int
@@ -25,8 +25,8 @@ encodePretty = toLazyByteString . fromValue 0 . toJSON
 fromValue :: Indent -> Value -> Builder
 fromValue ind = go
   where
-    go (Array v)  = fromCompound ind ('[',']') fromValue (toList v)
-    go (Object v) = fromCompound ind ('{','}') fromPair (assocs v)
+    go (Array v)  = fromCompound ind ('[',']') fromValue (V.toList v)
+    go (Object m) = fromCompound ind ('{','}') fromPair (H.toList m)
     go v          = Aeson.fromValue v
 
 fromCompound :: Indent
