@@ -10,7 +10,7 @@ import qualified Data.HashMap.Strict as H (toList)
 import Data.List (intersperse)
 import Data.Monoid (mappend, mconcat, mempty)
 import Data.Text (Text)
-import Data.Text.Lazy.Builder
+import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import qualified Data.Vector as V (toList)
 
@@ -35,22 +35,21 @@ fromCompound :: Indent
              -> [a]
              -> Builder
 fromCompound ind (delimL,delimR) fromItem items =
-    delimL `mappend` items' `mappend` delimR
+    delimL <>
+    if null items then mempty
+        else "\n" <> items' <> "\n" <> fromIndent ind <>
+    delimR
   where
-    items'  = if null items then mempty
-                else mconcat
-                    [ "\n"
-                    , mconcat . intersperse ",\n" $
-                        map (\i -> fromIndent (ind+1) `mappend`
-                                   fromItem (ind+1) i)
-                            items
-                    , "\n"
-                    , fromIndent ind
-                    ]
+    items' = mconcat . intersperse ",\n" $
+                map (\item -> fromIndent (ind+1) <> fromItem (ind+1) item)
+                    items
 
 fromPair :: Indent -> (Text, Value) -> Builder
-fromPair ind (k,v) =
-    Aeson.fromValue (toJSON k) `mappend` ": " `mappend` fromValue ind v
+fromPair ind (k,v) = Aeson.fromValue (toJSON k) <> ": " <> fromValue ind v
 
 fromIndent :: Indent -> Builder
 fromIndent ind = mconcat $ replicate (ind*4) " "
+
+(<>) :: Builder -> Builder -> Builder
+(<>) = mappend
+infixr 6 <>
