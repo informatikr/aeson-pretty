@@ -34,11 +34,12 @@ fromCompound :: Indent
              -> (Indent -> a -> Builder)
              -> [a]
              -> Builder
-fromCompound ind (delimL,delimR) fromItem items =
-    delimL <>
-    if null items then mempty
-        else "\n" <> items' <> "\n" <> fromIndent ind <>
-    delimR
+fromCompound ind (delimL,delimR) fromItem items = mconcat
+    [ delimL
+    , if null items then mempty
+        else "\n" <> items' <> "\n" <> fromIndent ind
+    , delimR
+    ]
   where
     items' = mconcat . intersperse ",\n" $
                 map (\item -> fromIndent (ind+1) <> fromItem (ind+1) item)
