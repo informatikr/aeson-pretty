@@ -11,10 +11,12 @@ import Paths_aeson_pretty (version)
 import System.Console.CmdArgs
 
 
-data Options = Opts { compact :: Bool } deriving (Data, Typeable)
+data Options = Opts { compact :: Bool
+                    , tabsize :: Int } deriving (Data, Typeable)
 
 opts :: Options
-opts = Opts { compact = False &= help "Compact output." &= groupname "Flags"}
+opts = Opts { compact = False &= help "Compact output." &= groupname "Flags"
+            , tabsize = 4 &= help "Tab size per nesting level."}
         &= program prog
         &= summary smry
         &= details info
@@ -37,7 +39,7 @@ info =
 main :: IO ()
 main = do
     Opts{..} <- cmdArgs opts
-    let enc = if compact then encode else encodePretty
+    let enc = if compact then encode else encodePretty tabsize
     interact $ unlines . map enc . values
 
 values :: ByteString -> [Value]

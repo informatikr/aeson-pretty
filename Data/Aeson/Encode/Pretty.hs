@@ -19,38 +19,38 @@ type Indent = Int
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
 --  JSON-ByteStrings for human readers.
-encodePretty :: ToJSON a => a -> ByteString
-encodePretty = encodeUtf8 . toLazyText . fromValue 0 . toJSON
+encodePretty :: ToJSON a => Int -> a -> ByteString
+encodePretty tabsize = encodeUtf8 . toLazyText . fromValue 0 . toJSON
+    where
+      fromValue :: Indent -> Value -> Builder
+      fromValue ind = go
+        where
+          go (Array v)  = fromCompound ind ("[","]") fromValue (V.toList v)
+          go (Object m) = fromCompound ind ("{","}") fromPair (H.toList m)
+          go v          = Aeson.fromValue v
 
-fromValue :: Indent -> Value -> Builder
-fromValue ind = go
-  where
-    go (Array v)  = fromCompound ind ("[","]") fromValue (V.toList v)
-    go (Object m) = fromCompound ind ("{","}") fromPair (H.toList m)
-    go v          = Aeson.fromValue v
+      fromCompound :: Indent
+                   -> (Builder, Builder)
+                   -> (Indent -> a -> Builder)
+                   -> [a]
+                   -> Builder
+      fromCompound ind (delimL,delimR) fromItem items = mconcat
+          [ delimL
+          , if null items then mempty
+              else "\n" <> items' <> "\n" <> fromIndent ind
+          , delimR
+          ]
+        where
+          items' = mconcat . intersperse ",\n" $
+                      map (\item -> fromIndent (ind+1) <> fromItem (ind+1) item)
+                          items
 
-fromCompound :: Indent
-             -> (Builder, Builder)
-             -> (Indent -> a -> Builder)
-             -> [a]
-             -> Builder
-fromCompound ind (delimL,delimR) fromItem items = mconcat
-    [ delimL
-    , if null items then mempty
-        else "\n" <> items' <> "\n" <> fromIndent ind
-    , delimR
-    ]
-  where
-    items' = mconcat . intersperse ",\n" $
-                map (\item -> fromIndent (ind+1) <> fromItem (ind+1) item)
-                    items
+      fromPair :: Indent -> (Text, Value) -> Builder
+      fromPair ind (k,v) = Aeson.fromValue (toJSON k) <> ": " <> fromValue ind v
 
-fromPair :: Indent -> (Text, Value) -> Builder
-fromPair ind (k,v) = Aeson.fromValue (toJSON k) <> ": " <> fromValue ind v
+      fromIndent :: Indent -> Builder
+      fromIndent ind = mconcat $ replicate (ind * tabsize) " "
 
-fromIndent :: Indent -> Builder
-fromIndent ind = mconcat $ replicate (ind*4) " "
-
-(<>) :: Builder -> Builder -> Builder
-(<>) = mappend
-infixr 6 <>
+      (<>) :: Builder -> Builder -> Builder
+      (<>) = mappend
+      infixr 6 <>
