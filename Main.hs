@@ -3,7 +3,7 @@ module Main (main) where
 
 import Prelude hiding (interact, concat, unlines, null)
 import Data.Aeson (Value(..), json', encode)
-import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.Aeson.Encode.Pretty
 import Data.Attoparsec.Lazy (Result(..), parse)
 import Data.ByteString.Lazy.Char8 (ByteString, interact, unlines, null)
 import Data.Version (showVersion)
@@ -11,11 +11,16 @@ import Paths_aeson_pretty (version)
 import System.Console.CmdArgs
 
 
-data Options = Opts { compact :: Bool } deriving (Data, Typeable)
+data Options = Opts { compact :: Bool
+                    , indent  :: Int
+                    }
+    deriving (Data, Typeable)
 
 opts :: Options
-opts = Opts { compact = False &= help "Compact output." &= groupname "Flags"}
-        &= program prog
+opts = Opts
+    { compact = False &= help "Compact output."
+    , indent  = 4     &= help "Number of spaces per nesting-level (default 4)."
+    }   &= program prog
         &= summary smry
         &= details info
   where
@@ -37,7 +42,7 @@ info =
 main :: IO ()
 main = do
     Opts{..} <- cmdArgs opts
-    let enc = if compact then encode else encodePretty
+    let enc = if compact then encode else encodePretty' indent
     interact $ unlines . map enc . values
 
 values :: ByteString -> [Value]
