@@ -1,65 +1,89 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 -- |Aeson-compatible pretty-printing of JSON 'Value's.
-module Data.Aeson.Encode.Pretty (encodePretty, encodePretty') where
+module Data.Aeson.Encode.Pretty
+( Config (..)
+, defConfig
+, encodePretty
+, encodePretty'
+) where
 
 import Data.Aeson (Value(..), ToJSON(..))
 import qualified Data.Aeson.Encode as Aeson
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.HashMap.Strict as H (toList)
-import Data.List (intersperse)
+import Data.List (intersperse, sortBy)
 import Data.Monoid (mappend, mconcat, mempty)
+import Data.Function (on)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import qualified Data.Vector as V (toList)
 
 
-type Indent = (Int, Int) -- (spaces per lvl, lvl)
+data PState = PState { pstIndent :: Int
+                     , pstLevel  :: Int
+                     , pstSort   :: [(Text, Value)] -> [(Text, Value)]
+                     }
+
+data Config = Config { confIndent  :: Int  -- ^ Spaces per level
+                     , confCompare :: Maybe (Text -> Text -> Ordering)
+                                           -- ^ Sort objects by key
+                     }
+
+-- |The default configuration: indent by four spaces per level of nesting, do
+--  not sort objects by key.
+--
+--  > defConfig = Config { confIndent = 4, confSort = Nothing }
+defConfig :: Config
+defConfig = Config { confIndent = 4, confCompare = Nothing }
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
 --  JSON-ByteStrings for human readers.
 --
---  Indents by four spaces per nesting-level.
+--  Follows the default configuration in 'defConfig'.
 encodePretty :: ToJSON a => a -> ByteString
-encodePretty = encodePretty' 4 -- default indentation is four spaces
+encodePretty = encodePretty' defConfig
 
--- |A variant of 'encodePretty' that takes an additional parameter: the number
---  of spaces to indent per nesting-level.
-encodePretty' :: ToJSON a => Int -> a -> ByteString
-encodePretty' spacesPerLvl = encodeUtf8 . toLazyText . fromValue ind . toJSON
+-- |A variant of 'encodePretty' that takes an additional configuration
+--  parameter.
+encodePretty' :: ToJSON a => Config -> a -> ByteString
+encodePretty' (Config {..}) = encodeUtf8 . toLazyText . fromValue st . toJSON
   where
-    ind = (spacesPerLvl, 0)
+    st = PState confIndent 0 condSort
 
-fromValue :: Indent -> Value -> Builder
-fromValue ind = go
+    condSort :: [(Text, Value)] -> [(Text, Value)]
+    condSort = maybe id (\c -> sortBy (c `on` fst)) confCompare
+
+fromValue :: PState -> Value -> Builder
+fromValue st@(PState {..}) = go
   where
-    go (Array v)  = fromCompound ind ("[","]") fromValue (V.toList v)
-    go (Object m) = fromCompound ind ("{","}") fromPair (H.toList m)
+    go (Array v)  = fromCompound st ("[","]") fromValue (V.toList v)
+    go (Object m) = fromCompound st ("{","}") fromPair (pstSort (H.toList m))
     go v          = Aeson.fromValue v
 
-fromCompound :: Indent
+fromCompound :: PState
              -> (Builder, Builder)
-             -> (Indent -> a -> Builder)
+             -> (PState -> a -> Builder)
              -> [a]
              -> Builder
-fromCompound ind (delimL,delimR) fromItem items = mconcat
+fromCompound st@(PState {..}) (delimL,delimR) fromItem items = mconcat
     [ delimL
     , if null items then mempty
-        else "\n" <> items' <> "\n" <> fromIndent ind
+        else "\n" <> items' <> "\n" <> fromIndent st
     , delimR
     ]
   where
     items' = mconcat . intersperse ",\n" $
-                map (\item -> fromIndent ind' <> fromItem ind' item)
+                map (\item -> fromIndent st' <> fromItem st' item)
                     items
-    ind' = let (spacesPerLvl, lvl) = ind in (spacesPerLvl, lvl + 1)
+    st' = st { pstLevel = pstLevel + 1 }
 
-fromPair :: Indent -> (Text, Value) -> Builder
-fromPair ind (k,v) = Aeson.fromValue (toJSON k) <> ": " <> fromValue ind v
+fromPair :: PState -> (Text, Value) -> Builder
+fromPair st (k,v) = Aeson.fromValue (toJSON k) <> ": " <> fromValue st v
 
-fromIndent :: Indent -> Builder
-fromIndent (spacesPerLvl, lvl) = mconcat $ replicate (spacesPerLvl * lvl) " "
+fromIndent :: PState -> Builder
+fromIndent (PState {..}) = mconcat $ replicate (pstIndent * pstLevel) " "
 
 (<>) :: Builder -> Builder -> Builder
 (<>) = mappend

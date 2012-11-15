@@ -13,6 +13,7 @@ import System.Console.CmdArgs
 
 data Options = Opts { compact :: Bool
                     , indent  :: Int
+                    , sort    :: Bool
                     }
     deriving (Data, Typeable)
 
@@ -20,6 +21,7 @@ opts :: Options
 opts = Opts
     { compact = False &= help "Compact output."
     , indent  = 4     &= help "Number of spaces per nesting-level (default 4)."
+    , sort    = False &= help "Sort objects by key (default false)."
     }   &= program prog
         &= summary smry
         &= details info
@@ -42,7 +44,10 @@ info =
 main :: IO ()
 main = do
     Opts{..} <- cmdArgs opts
-    let enc = if compact then encode else encodePretty' indent
+    let conf = Config { confIndent  = indent
+                      , confCompare = if sort then Just compare else Nothing
+                      }
+        enc = if compact then encode else encodePretty' conf
     interact $ unlines . map enc . values
 
 values :: ByteString -> [Value]
