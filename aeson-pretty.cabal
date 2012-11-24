@@ -35,25 +35,6 @@ flag lib-only
     description: Only build/install the library, NOT the command-line tool.
     default: False
 
-executable aeson-pretty
-    main-is: Main.hs
-
-    if flag(lib-only)
-        buildable: False
-    else
-        build-depends:
-            aeson == 0.6.*,
-            attoparsec == 0.10.*,
-            base == 4.*,
-            bytestring >= 0.9 && < 0.11,
-            cmdargs >= 0.7,
-            vector >= 0.9 && < 0.11,
-            text == 0.11.*,
-            unordered-containers >= 0.1.3.0
-
-    ghc-options: -Wall
-    ghc-prof-options: -auto-all
-
 library
     exposed-modules:
         Data.Aeson.Encode.Pretty
@@ -67,6 +48,24 @@ library
         unordered-containers >= 0.1.3.0
 
     ghc-options: -Wall
+
+executable aeson-pretty
+    hs-source-dirs: cli-tool
+    main-is: Main.hs
+
+    if flag(lib-only)
+        buildable: False
+    else
+        build-depends:
+            aeson == 0.6.*,
+            aeson-pretty,
+            attoparsec == 0.10.*,
+            base == 4.*,
+            bytestring >= 0.9 && < 0.11,
+            cmdargs >= 0.7
+
+    ghc-options: -Wall
+    ghc-prof-options: -auto-all
 
 source-repository head
     type:     git
