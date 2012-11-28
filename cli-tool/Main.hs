@@ -6,7 +6,6 @@ import Data.Aeson (Value(..), json', encode)
 import Data.Aeson.Encode.Pretty
 import Data.Attoparsec.Lazy (Result(..), parse)
 import Data.ByteString.Lazy.Char8 (ByteString, interact, unlines, null)
-import Data.Monoid
 import Data.Version (showVersion)
 import Paths_aeson_pretty (version)
 import System.Console.CmdArgs
