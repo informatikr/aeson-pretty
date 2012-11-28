@@ -1,20 +1,67 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 -- |Aeson-compatible pretty-printing of JSON 'Value's.
-module Data.Aeson.Encode.Pretty
-( Config (..)
-, defConfig
-, encodePretty
-, encodePretty'
+module Data.Aeson.Encode.Pretty (
+    -- * Simple Pretty-Printing
+    encodePretty,
+    
+    -- * Pretty-Printing with Configuration Options
+    encodePretty',
+    Config (..), defConfig,
+    -- ** Sorting Keys in Objects
+    -- |With the Aeson library, the order of keys in objects is undefined due
+    --  objects being implemented as HashMaps. To allow user-specified key
+    --  orders in the pretty-printed JSON, 'encodePretty'' can be configured
+    --  with a comparison function. These comparison functions can be composed
+    --  using the 'Monoid' interface. Some other useful helper functions to keep
+    --  in mind are 'comparing' and 'on'.
+    --  
+    --  Consider the following deliberately convoluted example, demonstrating
+    --  the use of comparison functions:
+    --
+    --  An  object might pretty-print as follows
+    --
+    --  > {
+    --  >   "baz": ...,
+    --  >   "bar": ...,
+    --  >   "foo": ...,
+    --  >   "quux": ...,
+    --  > }
+    --
+    --  which is clearly a confusing order of keys. By using a comparison
+    --  function such as
+    --
+    --  > comp :: Text -> Text -> Ordering
+    --  > comp = keyOrder ["foo","bar"] `mappend` comparing length
+    --
+    --  we can achieve the desired neat result:
+    --
+    --  > {
+    --  >   "foo": ...,
+    --  >   "bar": ...,
+    --  >   "baz": ...,
+    --  >   "quux": ...,
+    --  > }
+    --
+    
+    mempty,
+    -- |Serves as an order-preserving (non-)sort function. Re-exported from
+    --  "Data.Monoid".
+    compare,
+    -- |Sort keys in their natural order, i.e. by comparing character codes.
+    -- Re-exported from the Prelude and "Data.Ord"
+    keyOrder
 ) where
 
 import Data.Aeson (Value(..), ToJSON(..))
 import qualified Data.Aeson.Encode as Aeson
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.HashMap.Strict as H (toList)
-import Data.List (intersperse, sortBy)
-import Data.Monoid (mappend, mconcat, mempty)
 import Data.Function (on)
+import qualified Data.HashMap.Strict as H (toList)
+import Data.List (intersperse, sortBy, elemIndex)
+import Data.Maybe (fromMaybe)
+import Data.Monoid (mappend, mconcat, mempty)
+import Data.Ord
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Encoding (encodeUtf8)
@@ -26,9 +73,21 @@ data PState = PState { pstIndent :: Int
                      }
 
 data Config = Config
-    { confIndent  :: Int  -- ^ Spaces per level
-    , confCompare :: Text -> Text -> Ordering -- ^ Sort objects by key
+    { confIndent  :: Int
+      -- ^ Indentation spaces per level of nesting
+    , confCompare :: Text -> Text -> Ordering
+      -- ^ Function used to sort keys in objects
     }
+
+-- |Sort keys by their order of appearance in the argument list.
+--
+--  Keys that are not present in the argument list are considered to be greater
+--  than any key in the list and equal to all keys not in the list. I.e. keys
+--  not in the argument list are moved to the end, while their order is
+--  preserved.
+keyOrder :: [Text] -> Text -> Text -> Ordering
+keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
+
 
 -- |The default configuration: indent by four spaces per level of nesting, do
 --  not sort objects by key.
