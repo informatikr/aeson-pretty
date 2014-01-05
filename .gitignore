@@ -1,3 +1,5 @@
 dist
 cabal-dev
 *.json
+.cabal-sandbox
+cabal.sandbox.config
