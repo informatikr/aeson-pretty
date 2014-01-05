@@ -21,7 +21,7 @@ opts :: Options
 opts = Opts
     { compact = False &= help "Compact output."
     , indent  = 4     &= help "Number of spaces per nesting-level (default 4)."
-    , sort    = False &= help "Sort objects by key (default false)."
+    , sort    = False &= help "Sort objects by key (default: undefined order)."
     }   &= program prog
         &= summary smry
         &= details info
