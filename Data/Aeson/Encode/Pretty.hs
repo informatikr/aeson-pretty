@@ -92,7 +92,7 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 -- |The default configuration: indent by four spaces per level of nesting, do
 --  not sort objects by key.
 --
---  > defConfig = Config { confIndent = 4, confSort = mempty }
+--  > defConfig = Config { confIndent = 4, confCompare = mempty }
 defConfig :: Config
 defConfig = Config { confIndent = 4, confCompare = mempty }
 
