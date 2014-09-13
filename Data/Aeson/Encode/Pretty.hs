@@ -71,7 +71,7 @@ import System.Console.ANSI
 data PState = PState { pstIndent :: Int
                      , pstLevel  :: Int
                      , pstSort   :: [(Text, Value)] -> [(Text, Value)]
-                     , pstColors :: Value -> [SGR]
+                     , pstColors :: Value -> String
                      }
 
 data Config = Config
@@ -79,7 +79,7 @@ data Config = Config
       -- ^ Indentation spaces per level of nesting
     , confCompare :: Text -> Text -> Ordering
       -- ^ Function used to sort keys in objects
-    , confColors :: Value -> [SGR]
+    , confColors :: Value -> String
       -- ^ Map types of values to terminal-printable colors
     }
 
@@ -107,16 +107,16 @@ defConfig = Config { confIndent = 4, confCompare = mempty, confColors = noColors
 colorConfig :: Config
 colorConfig = defConfig { confColors = defColors }
 
-noColors :: (Value -> [SGR])
-noColors _ = [Reset]
+noColors :: (Value -> String)
+noColors _ = ""
 
-defColors :: (Value -> [SGR])
-defColors (Object _) = [Reset, SetColor Foreground Vivid White]
-defColors (Array _)  = [Reset, SetColor Foreground Vivid White]
-defColors (String _) = [Reset, SetColor Foreground Vivid Green]
-defColors (Number _) = [Reset, SetColor Foreground Vivid Blue]
-defColors (Bool _)   = [Reset, SetColor Foreground Vivid Magenta]
-defColors Null       = [Reset, SetColor Foreground Dull  White]
+defColors :: (Value -> String)
+defColors (Object _) = setSGRCode [Reset, SetColor Foreground Vivid White]
+defColors (Array _)  = setSGRCode [Reset, SetColor Foreground Vivid White]
+defColors (String _) = setSGRCode [Reset, SetColor Foreground Vivid Green]
+defColors (Number _) = setSGRCode [Reset, SetColor Foreground Vivid Blue]
+defColors (Bool _)   = setSGRCode [Reset, SetColor Foreground Vivid Magenta]
+defColors Null       = setSGRCode [Reset, SetColor Foreground Dull  White]
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
 --  JSON-ByteStrings for human readers.
@@ -141,8 +141,8 @@ fromValue st@PState{..} = go
     go v          = toColor pstColors v <> Aeson.fromValue v
     punctuation = toColor pstColors (object [])
 
-toColor :: (Value -> [SGR]) -> Value -> Builder
-toColor toSGRList v = (fromString . setSGRCode . toSGRList) v
+toColor :: (Value -> String) -> Value -> Builder
+toColor toColorCode v = (fromString . toColorCode) v
 
 fromCompound :: PState
              -> (Builder, Builder)
