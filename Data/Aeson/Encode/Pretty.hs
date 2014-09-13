@@ -7,7 +7,7 @@ module Data.Aeson.Encode.Pretty (
     
     -- * Pretty-Printing with Configuration Options
     encodePretty',
-    Config (..), defConfig,
+    Config (..), defConfig, colorConfig, noColors,
     -- ** Sorting Keys in Objects
     -- |With the Aeson library, the order of keys in objects is undefined due
     --  objects being implemented as HashMaps. To allow user-specified key
@@ -53,7 +53,7 @@ module Data.Aeson.Encode.Pretty (
     keyOrder
 ) where
 
-import Data.Aeson (Value(..), ToJSON(..))
+import Data.Aeson (Value(..), ToJSON(..), object)
 import qualified Data.Aeson.Encode as Aeson
 import Data.ByteString.Lazy (ByteString)
 import Data.Function (on)
@@ -63,13 +63,15 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (mappend, mconcat, mempty)
 import Data.Ord
 import Data.Text (Text)
-import Data.Text.Lazy.Builder (Builder, toLazyText)
+import Data.Text.Lazy.Builder (Builder, toLazyText, fromString)
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import qualified Data.Vector as V (toList)
+import System.Console.ANSI
 
 data PState = PState { pstIndent :: Int
                      , pstLevel  :: Int
                      , pstSort   :: [(Text, Value)] -> [(Text, Value)]
+                     , pstColors :: Value -> [SGR]
                      }
 
 data Config = Config
@@ -77,6 +79,8 @@ data Config = Config
       -- ^ Indentation spaces per level of nesting
     , confCompare :: Text -> Text -> Ordering
       -- ^ Function used to sort keys in objects
+    , confColors :: Value -> [SGR]
+      -- ^ Map types of values to terminal-printable colors
     }
 
 -- |Sort keys by their order of appearance in the argument list.
@@ -94,7 +98,25 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 --
 --  > defConfig = Config { confIndent = 4, confCompare = mempty }
 defConfig :: Config
-defConfig = Config { confIndent = 4, confCompare = mempty }
+defConfig = Config { confIndent = 4, confCompare = mempty, confColors = noColors }
+
+-- |Colored default configuration: indent by four spaces per level of nesting, do
+--  not sort objects by key, color values.
+--
+--  > colorConfig = Config { confIndent = 4, confCompare = mempty }
+colorConfig :: Config
+colorConfig = defConfig { confColors = defColors }
+
+noColors :: (Value -> [SGR])
+noColors _ = [Reset]
+
+defColors :: (Value -> [SGR])
+defColors (Object _) = [Reset, SetColor Foreground Vivid White]
+defColors (Array _)  = [Reset, SetColor Foreground Vivid White]
+defColors (String _) = [Reset, SetColor Foreground Vivid Green]
+defColors (Number _) = [Reset, SetColor Foreground Vivid Blue]
+defColors (Bool _)   = [Reset, SetColor Foreground Vivid Magenta]
+defColors Null       = [Reset, SetColor Foreground Dull  White]
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
 --  JSON-ByteStrings for human readers.
@@ -108,15 +130,19 @@ encodePretty = encodePretty' defConfig
 encodePretty' :: ToJSON a => Config -> a -> ByteString
 encodePretty' Config{..} = encodeUtf8 . toLazyText . fromValue st . toJSON
   where
-    st       = PState confIndent 0 condSort
+    st       = PState confIndent 0 condSort confColors
     condSort = sortBy (confCompare `on` fst)
 
 fromValue :: PState -> Value -> Builder
 fromValue st@PState{..} = go
   where
-    go (Array v)  = fromCompound st ("[","]") fromValue (V.toList v)
-    go (Object m) = fromCompound st ("{","}") fromPair (pstSort (H.toList m))
-    go v          = Aeson.fromValue v
+    go (Array v)  = fromCompound st (punctuation <> "[", punctuation <> "]") fromValue (V.toList v)
+    go (Object m) = fromCompound st (punctuation <> "{", punctuation <> "}") fromPair (pstSort (H.toList m))
+    go v          = toColor pstColors v <> Aeson.fromValue v
+    punctuation = toColor pstColors (object [])
+
+toColor :: (Value -> [SGR]) -> Value -> Builder
+toColor toSGRList v = (fromString . setSGRCode . toSGRList) v
 
 fromCompound :: PState
              -> (Builder, Builder)
@@ -130,13 +156,15 @@ fromCompound st@PState{..} (delimL,delimR) fromItem items = mconcat
     , delimR
     ]
   where
-    items' = mconcat . intersperse ",\n" $
+    items' = mconcat . intersperse (toColor pstColors (object []) <> ",\n") $
                 map (\item -> fromIndent st' <> fromItem st' item)
                     items
     st' = st { pstLevel = pstLevel + 1 }
 
 fromPair :: PState -> (Text, Value) -> Builder
-fromPair st (k,v) = Aeson.fromValue (toJSON k) <> ": " <> fromValue st v
+fromPair st@PState{..} (k,v) =
+       toColor pstColors (object []) <> Aeson.fromValue (toJSON k)
+    <> toColor pstColors (object []) <> ": " <> fromValue st v
 
 fromIndent :: PState -> Builder
 fromIndent PState{..} = mconcat $ replicate (pstIndent * pstLevel) " "
