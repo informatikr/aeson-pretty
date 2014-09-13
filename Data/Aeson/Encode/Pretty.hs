@@ -71,7 +71,7 @@ import System.Console.ANSI
 data PState = PState { pstIndent :: Int
                      , pstLevel  :: Int
                      , pstSort   :: [(Text, Value)] -> [(Text, Value)]
-                     , pstColors :: Value -> String
+                     , pstColor  :: Value -> String
                      }
 
 data Config = Config
@@ -79,8 +79,8 @@ data Config = Config
       -- ^ Indentation spaces per level of nesting
     , confCompare :: Text -> Text -> Ordering
       -- ^ Function used to sort keys in objects
-    , confColors :: Value -> String
-      -- ^ Map types of values to terminal-printable colors
+    , confColor :: Value -> String
+      -- ^ Map types of values to color codes interpreted by a terminal
     }
 
 -- |Sort keys by their order of appearance in the argument list.
@@ -98,14 +98,14 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 --
 --  > defConfig = Config { confIndent = 4, confCompare = mempty }
 defConfig :: Config
-defConfig = Config { confIndent = 4, confCompare = mempty, confColors = noColors }
+defConfig = Config { confIndent = 4, confCompare = mempty, confColor = noColors }
 
 -- |Colored default configuration: indent by four spaces per level of nesting, do
 --  not sort objects by key, color values.
 --
 --  > colorConfig = Config { confIndent = 4, confCompare = mempty }
 colorConfig :: Config
-colorConfig = defConfig { confColors = defColors }
+colorConfig = defConfig { confColor = defColors }
 
 noColors :: (Value -> String)
 noColors _ = ""
@@ -130,7 +130,7 @@ encodePretty = encodePretty' defConfig
 encodePretty' :: ToJSON a => Config -> a -> ByteString
 encodePretty' Config{..} = encodeUtf8 . toLazyText . fromValue st . toJSON
   where
-    st       = PState confIndent 0 condSort confColors
+    st       = PState confIndent 0 condSort confColor
     condSort = sortBy (confCompare `on` fst)
 
 fromValue :: PState -> Value -> Builder
@@ -138,8 +138,8 @@ fromValue st@PState{..} = go
   where
     go (Array v)  = fromCompound st (punctuation <> "[", punctuation <> "]") fromValue (V.toList v)
     go (Object m) = fromCompound st (punctuation <> "{", punctuation <> "}") fromPair (pstSort (H.toList m))
-    go v          = toColor pstColors v <> Aeson.fromValue v
-    punctuation = toColor pstColors (object [])
+    go v          = toColor pstColor v <> Aeson.fromValue v
+    punctuation = toColor pstColor (object [])
 
 toColor :: (Value -> String) -> Value -> Builder
 toColor toColorCode v = (fromString . toColorCode) v
@@ -156,15 +156,15 @@ fromCompound st@PState{..} (delimL,delimR) fromItem items = mconcat
     , delimR
     ]
   where
-    items' = mconcat . intersperse (toColor pstColors (object []) <> ",\n") $
+    items' = mconcat . intersperse (toColor pstColor (object []) <> ",\n") $
                 map (\item -> fromIndent st' <> fromItem st' item)
                     items
     st' = st { pstLevel = pstLevel + 1 }
 
 fromPair :: PState -> (Text, Value) -> Builder
 fromPair st@PState{..} (k,v) =
-       toColor pstColors (object []) <> Aeson.fromValue (toJSON k)
-    <> toColor pstColors (object []) <> ": " <> fromValue st v
+       toColor pstColor (object []) <> Aeson.fromValue (toJSON k)
+    <> toColor pstColor (object []) <> ": " <> fromValue st v
 
 fromIndent :: PState -> Builder
 fromIndent PState{..} = mconcat $ replicate (pstIndent * pstLevel) " "
