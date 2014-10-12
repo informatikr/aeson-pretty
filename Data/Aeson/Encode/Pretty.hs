@@ -67,13 +67,13 @@ import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import qualified Data.Vector as V (toList)
 
-data PState = PState { pstIndent :: Int
+data PState = PState { pstIndent :: Maybe Int
                      , pstLevel  :: Int
                      , pstSort   :: [(Text, Value)] -> [(Text, Value)]
                      }
 
 data Config = Config
-    { confIndent  :: Int
+    { confIndent  :: Maybe Int
       -- ^ Indentation spaces per level of nesting
     , confCompare :: Text -> Text -> Ordering
       -- ^ Function used to sort keys in objects
@@ -94,7 +94,7 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 --
 --  > defConfig = Config { confIndent = 4, confCompare = mempty }
 defConfig :: Config
-defConfig = Config { confIndent = 4, confCompare = mempty }
+defConfig = Config { confIndent = Just 4, confCompare = mempty }
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
 --  JSON-ByteStrings for human readers.
@@ -126,20 +126,23 @@ fromCompound :: PState
 fromCompound st@PState{..} (delimL,delimR) fromItem items = mconcat
     [ delimL
     , if null items then mempty
-        else "\n" <> items' <> "\n" <> fromIndent st
+        else separator <> items' <> separator <> fromIndent st
     , delimR
     ]
   where
-    items' = mconcat . intersperse ",\n" $
+    items' = mconcat . intersperse ("," <> separator) $
                 map (\item -> fromIndent st' <> fromItem st' item)
                     items
     st' = st { pstLevel = pstLevel + 1 }
+    separator = case pstIndent of
+        Nothing -> ""
+        Just _ -> "\n"
 
 fromPair :: PState -> (Text, Value) -> Builder
 fromPair st (k,v) = Aeson.fromValue (toJSON k) <> ": " <> fromValue st v
 
 fromIndent :: PState -> Builder
-fromIndent PState{..} = mconcat $ replicate (pstIndent * pstLevel) " "
+fromIndent PState{..} = mconcat $ replicate ((fromMaybe 0 pstIndent) * pstLevel) " "
 
 (<>) :: Builder -> Builder -> Builder
 (<>) = mappend
