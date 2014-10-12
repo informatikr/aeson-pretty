@@ -116,7 +116,7 @@ fromValue st@PState{..} = go
   where
     go (Array v)  = fromCompound st ("[","]") fromValue (V.toList v)
     go (Object m) = fromCompound st ("{","}") fromPair (pstSort (H.toList m))
-    go v          = Aeson.fromValue v
+    go v          = Aeson.encodeToTextBuilder v
 
 fromCompound :: PState
              -> (Builder, Builder)
@@ -136,7 +136,7 @@ fromCompound st@PState{..} (delimL,delimR) fromItem items = mconcat
     st' = st { pstLevel = pstLevel + 1 }
 
 fromPair :: PState -> (Text, Value) -> Builder
-fromPair st (k,v) = Aeson.fromValue (toJSON k) <> ": " <> fromValue st v
+fromPair st (k,v) = Aeson.encodeToTextBuilder (toJSON k) <> ": " <> fromValue st v
 
 fromIndent :: PState -> Builder
 fromIndent PState{..} = mconcat $ replicate (pstIndent * pstLevel) " "
