@@ -40,7 +40,7 @@ library
         Data.Aeson.Encode.Pretty
 
     build-depends:
-        aeson >= 0.6,
+        aeson >= 0.7,
         base == 4.*,
         bytestring >= 0.9,
         vector >= 0.9,
