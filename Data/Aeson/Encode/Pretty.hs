@@ -4,9 +4,10 @@
 module Data.Aeson.Encode.Pretty (
     -- * Simple Pretty-Printing
     encodePretty,
-    
+
     -- * Pretty-Printing with Configuration Options
     encodePretty',
+    encodePretty'',
     Config (..), defConfig,
     -- ** Sorting Keys in Objects
     -- |With the Aeson library, the order of keys in objects is undefined due
@@ -15,7 +16,7 @@ module Data.Aeson.Encode.Pretty (
     --  with a comparison function. These comparison functions can be composed
     --  using the 'Monoid' interface. Some other useful helper functions to keep
     --  in mind are 'comparing' and 'on'.
-    --  
+    --
     --  Consider the following deliberately convoluted example, demonstrating
     --  the use of comparison functions:
     --
@@ -43,7 +44,7 @@ module Data.Aeson.Encode.Pretty (
     --  >   "quux": ...,
     --  > }
     --
-    
+
     mempty,
     -- |Serves as an order-preserving (non-)sort function. Re-exported from
     --  "Data.Monoid".
@@ -96,7 +97,7 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 defConfig :: Config
 defConfig = Config { confIndent = 4, confCompare = mempty }
 
--- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
+-- |A drop-in replacement for aeson's 'Aeson.encode' function, producing
 --  JSON-ByteStrings for human readers.
 --
 --  Follows the default configuration in 'defConfig'.
@@ -106,7 +107,12 @@ encodePretty = encodePretty' defConfig
 -- |A variant of 'encodePretty' that takes an additional configuration
 --  parameter.
 encodePretty' :: ToJSON a => Config -> a -> ByteString
-encodePretty' Config{..} = encodeUtf8 . toLazyText . fromValue st . toJSON
+encodePretty' config = encodePretty'' config . toJSON
+
+-- |A variant of 'encodePretty' that takes an additional configuration
+--  parameter and 'Value' instead of 'ToJSON a'.
+encodePretty'' :: Config -> Value -> ByteString
+encodePretty'' Config{..} = encodeUtf8 . toLazyText . fromValue st
   where
     st       = PState confIndent 0 condSort
     condSort = sortBy (confCompare `on` fst)
