@@ -60,7 +60,7 @@ import Data.Function (on)
 import qualified Data.HashMap.Strict as H (toList)
 import Data.List (intersperse, sortBy, elemIndex)
 import Data.Maybe (fromMaybe)
-import Data.Monoid (mappend, mconcat, mempty)
+import Data.Monoid ((<>), mconcat, mempty)
 import Data.Ord
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder, toLazyText)
@@ -153,7 +153,3 @@ fromPair st (k,v) = Aeson.encodeToTextBuilder (toJSON k) <> ": " <> fromValue st
 
 fromIndent :: PState -> Builder
 fromIndent PState{..} = mconcat $ replicate (pstIndent * pstLevel) " "
-
-(<>) :: Builder -> Builder -> Builder
-(<>) = mappend
-infixr 6 <>
