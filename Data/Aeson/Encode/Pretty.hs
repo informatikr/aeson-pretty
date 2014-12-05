@@ -3,10 +3,10 @@
 -- |Aeson-compatible pretty-printing of JSON 'Value's.
 module Data.Aeson.Encode.Pretty (
     -- * Simple Pretty-Printing
-    encodePretty,
+    encodePretty, encodePrettyToTextBuilder,
     
     -- * Pretty-Printing with Configuration Options
-    encodePretty',
+    encodePretty', encodePrettyToTextBuilder',
     Config (..), defConfig,
     -- ** Sorting Keys in Objects
     -- |With the Aeson library, the order of keys in objects is undefined due
@@ -106,10 +106,23 @@ encodePretty = encodePretty' defConfig
 -- |A variant of 'encodePretty' that takes an additional configuration
 --  parameter.
 encodePretty' :: ToJSON a => Config -> a -> ByteString
-encodePretty' Config{..} = encodeUtf8 . toLazyText . fromValue st . toJSON
+encodePretty' conf = encodeUtf8 . toLazyText . encodePrettyToTextBuilder' conf
+
+-- |A drop-in replacement for aeson's 'Aeson.encodeToTextBuilder' function,
+--  producing JSON-ByteStrings for human readers.
+--
+--  Follows the default configuration in 'defConfig'.
+encodePrettyToTextBuilder :: ToJSON a => a -> Builder
+encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
+
+-- |A variant of 'encodeToTextBuilder' that takes an additional configuration
+--  parameter.
+encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
+encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
   where
     st       = PState confIndent 0 condSort
     condSort = sortBy (confCompare `on` fst)
+
 
 fromValue :: PState -> Value -> Builder
 fromValue st@PState{..} = go
