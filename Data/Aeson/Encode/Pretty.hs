@@ -4,10 +4,10 @@
 module Data.Aeson.Encode.Pretty (
     -- * Simple Pretty-Printing
     encodePretty, encodePrettyToTextBuilder,
-    
+
     -- * Pretty-Printing with Configuration Options
     encodePretty', encodePrettyToTextBuilder',
-    Config (..), defConfig,
+    Config (..), defConfig, FPFormat(..),
     -- ** Sorting Keys in Objects
     -- |With the Aeson library, the order of keys in objects is undefined due
     --  objects being implemented as HashMaps. To allow user-specified key
@@ -15,7 +15,7 @@ module Data.Aeson.Encode.Pretty (
     --  with a comparison function. These comparison functions can be composed
     --  using the 'Monoid' interface. Some other useful helper functions to keep
     --  in mind are 'comparing' and 'on'.
-    --  
+    --
     --  Consider the following deliberately convoluted example, demonstrating
     --  the use of comparison functions:
     --
@@ -43,7 +43,7 @@ module Data.Aeson.Encode.Pretty (
     --  >   "quux": ...,
     --  > }
     --
-    
+
     mempty,
     -- |Serves as an order-preserving (non-)sort function. Re-exported from
     --  "Data.Monoid".
@@ -62,14 +62,17 @@ import Data.List (intersperse, sortBy, elemIndex)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>), mconcat, mempty)
 import Data.Ord
+import Data.Scientific
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder, toLazyText)
+import Data.Text.Lazy.Builder.Scientific
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import qualified Data.Vector as V (toList)
 
 data PState = PState { pstIndent :: Int
-                     , pstLevel  :: Int
-                     , pstSort   :: [(Text, Value)] -> [(Text, Value)]
+                     , pstLevel :: Int
+                     , pstSort :: [(Text, Value)] -> [(Text, Value)]
+                     , pstFPFormat :: FPFormat
                      }
 
 data Config = Config
@@ -77,6 +80,8 @@ data Config = Config
       -- ^ Indentation spaces per level of nesting
     , confCompare :: Text -> Text -> Ordering
       -- ^ Function used to sort keys in objects
+    , confFPFormat :: FPFormat
+      -- ^ The way to format numbers
     }
 
 -- |Sort keys by their order of appearance in the argument list.
@@ -92,11 +97,19 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 -- |The default configuration: indent by four spaces per level of nesting, do
 --  not sort objects by key.
 --
---  > defConfig = Config { confIndent = 4, confCompare = mempty }
+--  > defConfig = Config
+--  >   { confIndent = 4
+--  >   , confCompare = mempty
+--  >   , confFPFormat = Generic
+--  >   }
 defConfig :: Config
-defConfig = Config { confIndent = 4, confCompare = mempty }
+defConfig = Config
+  { confIndent = 4
+  , confCompare = mempty
+  , confFPFormat = Generic
+  }
 
--- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
+-- |A drop-in replacement for aeson's 'Aeson.encode' function, producing
 --  JSON-ByteStrings for human readers.
 --
 --  Follows the default configuration in 'defConfig'.
@@ -120,7 +133,7 @@ encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
 encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
 encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
   where
-    st       = PState confIndent 0 condSort
+    st       = PState confIndent 0 condSort confFPFormat
     condSort = sortBy (confCompare `on` fst)
 
 
@@ -129,7 +142,15 @@ fromValue st@PState{..} = go
   where
     go (Array v)  = fromCompound st ("[","]") fromValue (V.toList v)
     go (Object m) = fromCompound st ("{","}") fromPair (pstSort (H.toList m))
+    go (Number x) = fromScientific pstFPFormat x
     go v          = Aeson.encodeToTextBuilder v
+
+fromScientific :: FPFormat -> Scientific -> Builder
+fromScientific fmt s = formatScientificBuilder format prec s
+  where
+    (format, prec)
+      | base10Exponent s < 0 = (fmt, Nothing)
+      | otherwise            = (Fixed, Just 0)
 
 fromCompound :: PState
              -> (Builder, Builder)
