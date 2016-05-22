@@ -67,6 +67,27 @@ executable aeson-pretty
     ghc-options: -Wall
     ghc-prof-options: -auto-all
 
+test-suite aeson-pretty-tests
+    hs-source-dirs: test/src
+    main-is: RunTest.hs
+
+    type: exitcode-stdio-1.0
+    build-depends:
+        aeson >= 0.6,
+        aeson-pretty,
+        base == 4.*,
+        bytestring >= 0.9,
+        containers,
+        filepath,
+        HUnit,
+        MissingH,
+        test-framework,
+        test-framework-hunit,
+        utf8-string
+
+    ghc-options: -Wall
+    ghc-prof-options: -auto-all
+
 source-repository head
     type:     git
     location: http://github.com/informatikr/aeson-pretty
