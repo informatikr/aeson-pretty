@@ -48,7 +48,7 @@ module Data.Aeson.Encode.Pretty (
     -- |Serves as an order-preserving (non-)sort function. Re-exported from
     --  "Data.Monoid".
     compare,
-    -- |Sort keys in their natural order, i.e. by comparing character codes.
+    -- |Sort keys in standard "ASCIIbetical" order, i.e. by comparing character codes.
     -- Re-exported from the Prelude and "Data.Ord"
     keyOrder
 ) where
@@ -70,7 +70,7 @@ import qualified Data.Vector as V (toList)
 data PState = PState { pstIndent :: Int
                      , pstLevel  :: Int
                      , pstSort   :: [(Text, Value)] -> [(Text, Value)]
-                     , pstNullValues :: Bool
+                     , pstNullValues :: Bool -- ^ allow keys with null values in the output
                      }
 
 data Config = Config
@@ -93,9 +93,9 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 
 
 -- |The default configuration: indent by four spaces per level of nesting, do
---  not sort objects by key.
+--  not sort objects by key, and preserve keys with null values.
 --
---  > defConfig = Config { confIndent = 4, confCompare = mempty }
+--  > defConfig = Config { confIndent = 4, confCompare = mempty, confNullValues = True }
 defConfig :: Config
 defConfig = Config { confIndent = 4, confCompare = mempty, confNullValues = True }
 
@@ -135,7 +135,7 @@ fromValue st@PState{..} = go
       where original_pairs = H.toList m
             filtered_pairs = if pstNullValues
                                then original_pairs
-                               else filter (\(_, v) -> v /= Null) original_pairs
+                               else filter (\p -> (snd p) /= Null) original_pairs
     go v          = Aeson.encodeToTextBuilder v
 
 fromCompound :: PState
