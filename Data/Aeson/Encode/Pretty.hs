@@ -70,6 +70,7 @@ import qualified Data.Vector as V (toList)
 data PState = PState { pstIndent :: Int
                      , pstLevel  :: Int
                      , pstSort   :: [(Text, Value)] -> [(Text, Value)]
+                     , pstNullValues :: Bool
                      }
 
 data Config = Config
@@ -77,6 +78,8 @@ data Config = Config
       -- ^ Indentation spaces per level of nesting
     , confCompare :: Text -> Text -> Ordering
       -- ^ Function used to sort keys in objects
+    , confNullValues :: Bool
+      -- ^ Set to 'False' to suppress object pairs with null values. Compare to <http://hackage.haskell.org/package/aeson/docs/Data-Aeson-TH.html#v:omitNothingFields 'omitNothingFields'>
     }
 
 -- |Sort keys by their order of appearance in the argument list.
@@ -94,7 +97,7 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 --
 --  > defConfig = Config { confIndent = 4, confCompare = mempty }
 defConfig :: Config
-defConfig = Config { confIndent = 4, confCompare = mempty }
+defConfig = Config { confIndent = 4, confCompare = mempty, confNullValues = True }
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
 --  JSON-ByteStrings for human readers.
@@ -120,7 +123,7 @@ encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
 encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
 encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
   where
-    st       = PState confIndent 0 condSort
+    st       = PState confIndent 0 condSort confNullValues
     condSort = sortBy (confCompare `on` fst)
 
 
@@ -128,7 +131,11 @@ fromValue :: PState -> Value -> Builder
 fromValue st@PState{..} = go
   where
     go (Array v)  = fromCompound st ("[","]") fromValue (V.toList v)
-    go (Object m) = fromCompound st ("{","}") fromPair (pstSort (H.toList m))
+    go (Object m) = fromCompound st ("{","}") fromPair (pstSort filtered_pairs)
+      where original_pairs = H.toList m
+            filtered_pairs = if pstNullValues
+                               then original_pairs
+                               else filter (\(_, v) -> v /= Null) original_pairs
     go v          = Aeson.encodeToTextBuilder v
 
 fromCompound :: PState
