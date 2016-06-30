@@ -8,7 +8,7 @@ module Data.Aeson.Encode.Pretty (
     -- * Pretty-Printing with Configuration Options
     encodePretty', encodePrettyToTextBuilder',
     Config (..), defConfig,
-    Indent(..),
+    Indent(..), NumberFormat(..),
     -- ** Sorting Keys in Objects
     -- |With the Aeson library, the order of keys in objects is undefined due to
     --  objects being implemented as HashMaps. To allow user-specified key
@@ -62,9 +62,11 @@ import qualified Data.HashMap.Strict as H (toList)
 import Data.List (intersperse, sortBy, elemIndex)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
+import qualified Data.Scientific as S (Scientific, FPFormat(..))
 import Data.Ord (comparing)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder, toLazyText)
+import Data.Text.Lazy.Builder.Scientific (formatScientificBuilder)
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import qualified Data.Vector as V (toList)
 
@@ -74,6 +76,7 @@ data PState = PState { pLevel     :: Int
                      , pNewline   :: Builder
                      , pItemSep   :: Builder
                      , pKeyValSep :: Builder
+                     , pNumFormat :: NumberFormat
                      , pSort      :: [(Text, Value)] -> [(Text, Value)]
                      }
 
@@ -81,11 +84,23 @@ data PState = PState { pLevel     :: Int
 --   from the output.
 data Indent = Spaces Int | Tab
 
+data NumberFormat
+  -- | Use decimal notation for values between 0.1 and 9,999,999, and scientific
+  --   notation otherwise.
+  = Generic
+  -- | Scientific notation (e.g. 2.3e123).
+  | Scientific
+  -- | Standard decimal notation
+  | Decimal
+  -- | Custom formatting function
+  | Custom (S.Scientific -> Builder)
+
 data Config = Config
     { confIndent  :: Indent
       -- ^ Indentation per level of nesting
     , confCompare :: Text -> Text -> Ordering
       -- ^ Function used to sort keys in objects
+    , confNumFormat :: NumberFormat
     }
 
 -- |Sort keys by their order of appearance in the argument list.
@@ -101,9 +116,10 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 -- |The default configuration: indent by four spaces per level of nesting, do
 --  not sort objects by key.
 --
---  > defConfig = Config { confIndent = 4, confCompare = mempty }
+--  > defConfig = Config { confIndent = 4, confCompare = mempty, confNumFormat = Generic }
 defConfig :: Config
-defConfig = Config { confIndent = Spaces 4, confCompare = mempty }
+defConfig =
+  Config {confIndent = Spaces 4, confCompare = mempty, confNumFormat = Generic}
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing
 --  JSON-ByteStrings for human readers.
@@ -129,7 +145,7 @@ encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
 encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
 encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
   where
-    st      = PState 0 indent newline itemSep kvSep sortFn
+    st      = PState 0 indent newline itemSep kvSep confNumFormat sortFn
     indent  = case confIndent of
                 Spaces n -> mconcat (replicate n " ")
                 Tab      -> "\t"
@@ -148,6 +164,7 @@ fromValue st@PState{..} = go
   where
     go (Array v)  = fromCompound st ("[","]") fromValue (V.toList v)
     go (Object m) = fromCompound st ("{","}") fromPair (pSort (H.toList m))
+    go (Number x) = fromNumber st x
     go v          = Aeson.encodeToTextBuilder v
 
 fromCompound :: PState
@@ -173,3 +190,10 @@ fromPair st (k,v) =
 
 fromIndent :: PState -> Builder
 fromIndent PState{..} = mconcat (replicate pLevel pIndent)
+
+fromNumber :: PState -> S.Scientific -> Builder
+fromNumber st x = case pNumFormat st of
+  Generic    -> formatScientificBuilder S.Generic Nothing x
+  Scientific -> formatScientificBuilder S.Exponent Nothing x
+  Decimal    -> formatScientificBuilder S.Fixed Nothing x
+  Custom f   -> f x
