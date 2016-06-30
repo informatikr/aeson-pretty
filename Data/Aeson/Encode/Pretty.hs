@@ -4,18 +4,18 @@
 module Data.Aeson.Encode.Pretty (
     -- * Simple Pretty-Printing
     encodePretty, encodePrettyToTextBuilder,
-    
+
     -- * Pretty-Printing with Configuration Options
     encodePretty', encodePrettyToTextBuilder',
     Config (..), defConfig,
     -- ** Sorting Keys in Objects
-    -- |With the Aeson library, the order of keys in objects is undefined due
+    -- |With the Aeson library, the order of keys in objects is undefined due to
     --  objects being implemented as HashMaps. To allow user-specified key
     --  orders in the pretty-printed JSON, 'encodePretty'' can be configured
     --  with a comparison function. These comparison functions can be composed
     --  using the 'Monoid' interface. Some other useful helper functions to keep
     --  in mind are 'comparing' and 'on'.
-    --  
+    --
     --  Consider the following deliberately convoluted example, demonstrating
     --  the use of comparison functions:
     --
@@ -43,7 +43,7 @@ module Data.Aeson.Encode.Pretty (
     --  >   "quux": ...,
     --  > }
     --
-    
+
     mempty,
     -- |Serves as an order-preserving (non-)sort function. Re-exported from
     --  "Data.Monoid".
@@ -96,7 +96,7 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 defConfig :: Config
 defConfig = Config { confIndent = 4, confCompare = mempty }
 
--- |A drop-in replacement for aeson's 'Aeson.encode' function, producing 
+-- |A drop-in replacement for aeson's 'Aeson.encode' function, producing
 --  JSON-ByteStrings for human readers.
 --
 --  Follows the default configuration in 'defConfig'.
@@ -120,8 +120,8 @@ encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
 encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
 encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
   where
-    st       = PState confIndent 0 condSort
-    condSort = sortBy (confCompare `on` fst)
+    st       = PState confIndent 0 confSort
+    confSort = sortBy (confCompare `on` fst)
 
 
 fromValue :: PState -> Value -> Builder
