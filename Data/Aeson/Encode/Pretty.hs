@@ -69,11 +69,16 @@ import Data.Text.Lazy.Encoding (encodeUtf8)
 import qualified Data.Vector as V (toList)
 
 
-data PState = PState { pstLevel  :: Int
-                     , pstIndent :: Builder
-                     , pstSort   :: [(Text, Value)] -> [(Text, Value)]
+data PState = PState { pLevel     :: Int
+                     , pIndent    :: Builder
+                     , pNewline   :: Builder
+                     , pItemSep   :: Builder
+                     , pKeyValSep :: Builder
+                     , pSort      :: [(Text, Value)] -> [(Text, Value)]
                      }
 
+-- | Indentation per level of nesting. @'Spaces' 0@ removes __all__ whitespace
+--   from the output.
 data Indent = Spaces Int | Tab
 
 data Config = Config
@@ -124,19 +129,25 @@ encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
 encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
 encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
   where
-    st     = PState 0 indent sortFn
-    indent = case confIndent of
-              Spaces n -> mconcat (replicate n " ")
-              Tab      -> "\t"
-    sortFn = sortBy (confCompare `on` fst)
-
+    st      = PState 0 indent newline itemSep kvSep sortFn
+    indent  = case confIndent of
+                Spaces n -> mconcat (replicate n " ")
+                Tab      -> "\t"
+    newline = case confIndent of
+                Spaces 0 -> ""
+                _        -> "\n"
+    itemSep = ","
+    kvSep   = case confIndent of
+                Spaces 0 -> ":"
+                _        -> ": "
+    sortFn  = sortBy (confCompare `on` fst)
 
 
 fromValue :: PState -> Value -> Builder
 fromValue st@PState{..} = go
   where
     go (Array v)  = fromCompound st ("[","]") fromValue (V.toList v)
-    go (Object m) = fromCompound st ("{","}") fromPair (pstSort (H.toList m))
+    go (Object m) = fromCompound st ("{","}") fromPair (pSort (H.toList m))
     go v          = Aeson.encodeToTextBuilder v
 
 fromCompound :: PState
@@ -147,17 +158,18 @@ fromCompound :: PState
 fromCompound st@PState{..} (delimL,delimR) fromItem items = mconcat
     [ delimL
     , if null items then mempty
-        else "\n" <> items' <> "\n" <> fromIndent st
+        else pNewline <> items' <> pNewline <> fromIndent st
     , delimR
     ]
   where
-    items' = mconcat . intersperse ",\n" $
+    items' = mconcat . intersperse (pItemSep <> pNewline) $
                 map (\item -> fromIndent st' <> fromItem st' item)
                     items
-    st' = st { pstLevel = pstLevel + 1 }
+    st' = st { pLevel = pLevel + 1 }
 
 fromPair :: PState -> (Text, Value) -> Builder
-fromPair st (k,v) = Aeson.encodeToTextBuilder (toJSON k) <> ": " <> fromValue st v
+fromPair st (k,v) =
+  Aeson.encodeToTextBuilder (toJSON k) <> pKeyValSep st <> fromValue st v
 
 fromIndent :: PState -> Builder
-fromIndent PState{..} = mconcat $ replicate pstLevel pstIndent
+fromIndent PState{..} = mconcat (replicate pLevel pIndent)
