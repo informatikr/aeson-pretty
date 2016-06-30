@@ -3,3 +3,5 @@ cabal-dev
 *.json
 .cabal-sandbox
 cabal.sandbox.config
+.stack-work
+stack.yaml
