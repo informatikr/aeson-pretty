@@ -8,6 +8,7 @@ module Data.Aeson.Encode.Pretty (
     -- * Pretty-Printing with Configuration Options
     encodePretty', encodePrettyToTextBuilder',
     Config (..), defConfig,
+    Indent(..),
     -- ** Sorting Keys in Objects
     -- |With the Aeson library, the order of keys in objects is undefined due to
     --  objects being implemented as HashMaps. To allow user-specified key
@@ -60,21 +61,24 @@ import Data.Function (on)
 import qualified Data.HashMap.Strict as H (toList)
 import Data.List (intersperse, sortBy, elemIndex)
 import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>), mconcat, mempty)
-import Data.Ord
+import Data.Monoid ((<>))
+import Data.Ord (comparing)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import qualified Data.Vector as V (toList)
 
-data PState = PState { pstIndent :: Int
-                     , pstLevel  :: Int
+
+data PState = PState { pstLevel  :: Int
+                     , pstIndent :: Builder
                      , pstSort   :: [(Text, Value)] -> [(Text, Value)]
                      }
 
+data Indent = Spaces Int | Tab
+
 data Config = Config
-    { confIndent  :: Int
-      -- ^ Indentation spaces per level of nesting
+    { confIndent  :: Indent
+      -- ^ Indentation per level of nesting
     , confCompare :: Text -> Text -> Ordering
       -- ^ Function used to sort keys in objects
     }
@@ -94,7 +98,7 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 --
 --  > defConfig = Config { confIndent = 4, confCompare = mempty }
 defConfig :: Config
-defConfig = Config { confIndent = 4, confCompare = mempty }
+defConfig = Config { confIndent = Spaces 4, confCompare = mempty }
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing
 --  JSON-ByteStrings for human readers.
@@ -120,8 +124,12 @@ encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
 encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
 encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
   where
-    st       = PState confIndent 0 confSort
-    confSort = sortBy (confCompare `on` fst)
+    st     = PState 0 indent sortFn
+    indent = case confIndent of
+              Spaces n -> mconcat (replicate n " ")
+              Tab      -> "\t"
+    sortFn = sortBy (confCompare `on` fst)
+
 
 
 fromValue :: PState -> Value -> Builder
@@ -152,4 +160,4 @@ fromPair :: PState -> (Text, Value) -> Builder
 fromPair st (k,v) = Aeson.encodeToTextBuilder (toJSON k) <> ": " <> fromValue st v
 
 fromIndent :: PState -> Builder
-fromIndent PState{..} = mconcat $ replicate (pstIndent * pstLevel) " "
+fromIndent PState{..} = mconcat $ replicate pstLevel pstIndent

@@ -44,7 +44,7 @@ info =
 main :: IO ()
 main = do
     Opts{..} <- cmdArgs opts
-    let conf = Config { confIndent  = indent
+    let conf = Config { confIndent  = Spaces indent
                       , confCompare = if sort then compare else mempty
                       }
         enc = if compact then encode else encodePretty' conf
