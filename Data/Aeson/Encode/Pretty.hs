@@ -69,6 +69,8 @@ import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Builder.Scientific (formatScientificBuilder)
 import Data.Text.Lazy.Encoding (encodeUtf8)
 import qualified Data.Vector as V (toList)
+import Prelude ()
+import Prelude.Compat
 
 
 data PState = PState { pLevel     :: Int
