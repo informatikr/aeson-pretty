@@ -87,7 +87,9 @@ data PState = PState { pLevel     :: Int
 data Indent = Spaces Int | Tab
 
 data NumberFormat
-  -- | Use decimal notation for values between 0.1 and 9,999,999, and scientific
+  -- | The standard behaviour of the 'Aeson.encode' function. Uses
+  --   integer literals for integers (1, 2, 3...), simple decimals
+  --   for fractional values between 0.1 and 9,999,999, and scientific
   --   notation otherwise.
   = Generic
   -- | Scientific notation (e.g. 2.3e123).
@@ -195,7 +197,7 @@ fromIndent PState{..} = mconcat (replicate pLevel pIndent)
 
 fromNumber :: PState -> S.Scientific -> Builder
 fromNumber st x = case pNumFormat st of
-  Generic    -> formatScientificBuilder S.Generic Nothing x
+  Generic    -> Aeson.encodeToTextBuilder $ Number x
   Scientific -> formatScientificBuilder S.Exponent Nothing x
   Decimal    -> formatScientificBuilder S.Fixed Nothing x
   Custom f   -> f x
