@@ -52,18 +52,18 @@ module Data.Aeson.Encode.Pretty (
     -- |Sort keys in their natural order, i.e. by comparing character codes.
     -- Re-exported from the Prelude and "Data.Ord"
     keyOrder,
-    -- | Sort an array of Values with Null < Bool < Number < String < Array < Object.
+    -- | Sort an array of Values with
+    -- Null < Bool < Number < String < Array < Object.
     -- Objects are compared by considering them as [[(Text, Value)]]
     mkBasicValueCompare
 ) where
 
-import Data.Aeson (Value(..), ToJSON(..), Array, Object)
+import Data.Aeson (Value(..), ToJSON(..), Object)
 import qualified Data.Aeson.Encode as Aeson
 import Data.ByteString.Lazy (ByteString)
 import Data.Function (on)
--- import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as H (toList)
-import Data.List (intersperse, sort, sortBy, elemIndex)
+import Data.List (intersperse, sortBy, elemIndex)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import qualified Data.Scientific as S (Scientific, FPFormat(..))
@@ -72,29 +72,9 @@ import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder, toLazyText)
 import Data.Text.Lazy.Builder.Scientific (formatScientificBuilder)
 import Data.Text.Lazy.Encoding (encodeUtf8)
--- import Data.Vector (Vector)
 import qualified Data.Vector as V
 import Prelude ()
 import Prelude.Compat
-
--- import Data.Aeson.Encode.OrdValue
-
-------------------
-{-
--- for tests
-import qualified Data.ByteString.Lazy.Char8 as L8
--- attoparsec
-import Data.Attoparsec.ByteString (maybeResult, parse)
-
--- aeson
-import Data.Aeson ( Value(Array, Number, Null, Object, String), FromJSON, ToJSON
-                  , Result(Error, Success) --, (.=)
-                  , decode, encode, fromJSON, json, object, toJSON)
-
-import qualified Data.ByteString.Lazy.Char8 as L8
--}
-
------------------------------------
 
 type KeySorter = [(Text, Value)] -> [(Text, Value)]
 type ListSorter = [Value] -> [Value]
@@ -150,10 +130,15 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 -- |The default configuration: indent by four spaces per level of nesting, do
 --  not sort objects by key.
 --
---  > defConfig = Config { confIndent = Spaces 4, confCompare = mempty, confNumFormat = Generic }
+--  > defConfig = Config { confIndent = Spaces 4
+--                       , confCompare = mempty
+--                       , confNumFormat = Generic
+--                       , confValueCompare = mempty
+--                       }
 defConfig :: Config
 defConfig =
-  Config {confIndent = Spaces 4, confCompare = mempty, confNumFormat = Generic, confValueCompare = mempty}
+  Config {confIndent = Spaces 4, confCompare = mempty
+         , confNumFormat = Generic, confValueCompare = mempty}
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing
 --  JSON-ByteStrings for human readers.
@@ -179,7 +164,9 @@ encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
 encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
 encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
   where
-    st      = PState 0 indent newline itemSep kvSep confNumFormat sortFn arraySortFn
+    st      = PState 0 indent newline itemSep kvSep confNumFormat
+                     sortFn arraySortFn
+                     
     indent  = case confIndent of
                 Spaces n -> mconcat (replicate n " ")
                 Tab      -> "\t"
@@ -190,15 +177,14 @@ encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
     kvSep   = case confIndent of
                 Spaces 0 -> ":"
                 _        -> ": "
-    sortFn  = sortBy (confCompare `on` fst)
-
+                
+    sortFn      = mkKeySorter confCompare
     arraySortFn = sortBy confValueCompare
 
 
 fromValue :: PState -> Value -> Builder
 fromValue st@PState{..} = go
   where
-    -- go (Array v)  = fromCompound st ("[","]") fromValue (sortArrayToList pSort v)
     go (Array v)  = fromCompound st ("[","]") fromValue (pListSort (V.toList v))
     go (Object m) = fromCompound st ("{","}") fromPair (pSort (H.toList m))
     go (Number x) = fromNumber st x
@@ -236,11 +222,7 @@ fromNumber st x = case pNumFormat st of
   Custom f   -> f x
 
 
-
 data OrdValue = OrdValue KeySorter Value
-
-toValue :: OrdValue -> Value
-toValue (OrdValue _ x) = x
 
 instance Eq OrdValue where
   (OrdValue _ x) == (OrdValue _ y) = x == y
@@ -263,7 +245,9 @@ instance Ord OrdValue where
   compare (OrdValue _ (String _)) _                       = LT
   compare _                       (OrdValue _ (String _)) = GT
 
-  compare (OrdValue ks (Array x)) (OrdValue _ (Array y)) = compare (fmap (OrdValue ks) x) (fmap (OrdValue ks) y)
+  compare (OrdValue ks (Array x)) (OrdValue _ (Array y)) =
+    compare (fmap (OrdValue ks) x) (fmap (OrdValue ks) y)
+    
   compare (OrdValue _  (Array _)) _                      = LT
   compare _                       (OrdValue _ (Array _)) = GT
 
@@ -271,117 +255,15 @@ instance Ord OrdValue where
     compare (toListOrderedByKeys ks x) (toListOrderedByKeys ks y)
 
 
-compareValue :: KeySorter -> Value -> Value -> Ordering
-compareValue ks x y = compare (OrdValue ks x) (OrdValue ks y)
-
-{-
-compareValuesWith :: ([(Text, Value)] -> [(Text, Value)]) -> Value -> Value -> Ordering
-compareValuesWith _ Null Null = EQ
-compareValuesWith _ Null _    = LT
-compareValuesWith _ _    Null = GT
-  
-compareValuesWith _ (Bool x) (Bool y) = compare x y
-compareValuesWith _ (Bool _) _        = LT
-compareValuesWith _ _        (Bool _) = GT
-
-compareValuesWith _ (Number x) (Number y) = compare  x y
-compareValuesWith _ (Number _) _          = LT
-compareValuesWith _ _          (Number _) = GT
-
-compareValuesWith _ (String x) (String y) = compare x y
-compareValuesWith _ (String _) _          = LT
-compareValuesWith _ _          (String _) = GT
-
-compareValuesWith f (Array x) (Array y) = compare (V.toList x) (V.toList y)
-compareValuesWith _ (Array _) _         = LT
-compareValuesWith _ _         (Array _) = GT
-
-compareValuesWith keySorter (Object x) (Object y) =
-  compare (toListOrderedByKeys keySorter x) (toListOrderedByKeys keySorter y)
-
-
-toListOrderedByKeys :: ([(Text, Value)] -> [(Text, Value)]) -> HashMap Text Value -> [(Text, Value)]
-toListOrderedByKeys keySorter m = keySorter $ H.toList m
--}
-
-
 toListOrderedByKeys :: KeySorter -> Object -> [(Text, OrdValue)]
 toListOrderedByKeys ks obj =
   map (\(k, v) -> (k, OrdValue ks v)) $ ks $ H.toList obj
 
-sortArrayToList :: KeySorter -> Array -> [Value]
--- sortArrayToList ks arr = map toValue $ sort $ V.toList $ fmap (OrdValue ks) arr
-sortArrayToList ks arr = sortArrayToList2 (mkListSorter ks) arr
-
--- type ListSorter = [Value] -> [Value]
-
-sortArrayToList2 :: ListSorter -> Array -> [Value]
-sortArrayToList2 ls =  ls . V.toList
-
-mkListSorter :: KeySorter -> ListSorter
-mkListSorter ks =  map toValue . sort . map (OrdValue ks)
-
-ftn :: (Value -> Value -> Ordering) -> ListSorter
-ftn comp vs = sortBy comp vs
-
-
-
 mkKeySorter :: (Text -> Text -> Ordering) -> KeySorter
 mkKeySorter txtCompare = sortBy (txtCompare `on` fst)
-
-mkValueCompareOld :: KeySorter -> Value -> Value -> Ordering
-mkValueCompareOld ks x y = compare (OrdValue ks x) (OrdValue ks y)
 
 mkBasicValueCompare ::  (Text -> Text -> Ordering) -> Value -> Value -> Ordering
 mkBasicValueCompare txtCompare x y = compare (OrdValue ks x) (OrdValue ks y)
   where
     ks = mkKeySorter txtCompare
 
-
------------------------------------------
-
-{-
--- js4 :: ByteString
-js4 = "[{\"key2\":9, \"key1\" : \"x\", \"updated\" : \"fortyTwo\"}, {\"key2\":9, \"key1\" : \"abc\", \"updated\" :45}, 7, 1, \"aaa\"]"
-
-conf :: Config
-conf = defConfig {confCompare = compare}
-
-v7 :: Value
-Just v7 = maybeResult $ parse json js4 :: Maybe Value
-
-io1 :: IO ()
-io1 = L8.putStrLn $ encodePretty' conf v7
--}
-
-ks0 :: KeySorter
-ks0 = undefined
-
-as0 :: ListSorter
-as0 = undefined
-
-arr0 :: Array
-arr0 = undefined
-
--- ovs1 :: [OrdValue]
--- ovs1 = V.toList $ ftn ks0 arr0
-
-vs1 :: [Value]
-vs1 = V.toList arr0
-
-vs2 :: [Value]
-vs2 = as0 vs1
-
-sortOrdValues :: [OrdValue] -> [OrdValue]
-sortOrdValues vs = sortBy compare vs
-
-listSorter :: ListSorter
--- ftn vs = map toValue $ sortOrdValues $ map (\v -> OrdValue ks0 v) vs
--- ftn vs = map toValue $ sortBy compare $ map (\v -> OrdValue ks0 v) vs
--- ftn = map toValue $ sortOrdValues $ map (OrdValue ks0)
--- listSorter vs = map toValue $ sort $ map (\v -> OrdValue ks0 v) vs
-listSorter = map toValue . sort . map (OrdValue ks0)
-
-
-
--- vs3 = sortBy $ compare (\v -> OrdValue ks0 v)
