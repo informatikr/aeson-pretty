@@ -44,6 +44,7 @@ module Data.Aeson.Encode.Pretty (
     --  >   "quux": ...,
     --  > }
     --
+    --
 
     mempty,
     -- |Serves as an order-preserving (non-)sort function. Re-exported from
@@ -52,9 +53,65 @@ module Data.Aeson.Encode.Pretty (
     -- |Sort keys in their natural order, i.e. by comparing character codes.
     -- Re-exported from the Prelude and "Data.Ord"
     keyOrder,
-    -- | Sort an array of Values with
-    -- Null < Bool < Number < String < Array < Object.
-    -- Objects are compared by considering them as [[(Text, Value)]]
+    -- ** Sorting Values in Arrays
+    -- |In some cases, it is useful to sort values in arrays.  To
+    --  allow user-specified value orders in the pretty-printed JSON,
+    --  'encodePretty'' can be configured with a value comparison function
+    --  having type 'Value' -> 'Value' -> 'Ordering'.
+    --
+    --  The helper function 'mkBasicValueCompare' may be used to create
+    --  a comparison function that sorts values with
+    --  'Null' < 'Bool' < 'Number' < 'String' < 'Array' < 'Object'.
+    --  If the array contains some objects, then these objects are sorted
+    --  considering them as
+    --  [[('Text', 'Value')]], in which the [('Text', 'Value')] is sorted with
+    --  the given key/text comparison function (the first argument to
+    --  'mkBasicValueCompare').  For consistency, this key/text comparison
+    --  function should be the same comparison function that
+    --  is used
+    --  to sort keys within an object.
+    --
+    --  For example given this array of objects
+    --
+    --  > [
+    --  >   {
+    --  >     "baz" : 10,
+    --  >     "bar" : 20,
+    --  >     "foo" : 30
+    --  >   }
+    --  >   ,
+    --  >   True,
+    --  >   {
+    --  >     "baz" : 1,
+    --  >     "bar" : 2,
+    --  >     "foo" : 3
+    --  >   }
+    --  >  ]
+    --
+    --  and this configuration
+    --
+    --  > config = defConfig { confCompare      = compare
+    --  >                    , confValueCompare = mkBasicValueCompare compare}
+    --
+    --  sorting the array results in:
+    --
+    --  > [
+    --  >   True,
+    --  >   {
+    --  >     "bar" : 2,
+    --  >     "baz" : 1,
+    --  >     "foo" : 3
+    --  >   }
+    --  >   ,
+    --  >   {
+    --  >     "bar" : 20,
+    --  >     "baz" : 10,
+    --  >     "foo" : 30
+    --  >   }
+    --  > ]
+    --
+    --
+
     mkBasicValueCompare
 ) where
 
@@ -113,8 +170,8 @@ data Config = Config
     , confCompare :: Text -> Text -> Ordering
       -- ^ Function used to sort keys in objects
     , confNumFormat :: NumberFormat
-      -- ^ Flag to sort array of values
     , confValueCompare :: Value -> Value -> Ordering
+      -- ^ Function used to sort values in arrays
     }
 
 -- |Sort keys by their order of appearance in the argument list.
@@ -128,13 +185,13 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 
 
 -- |The default configuration: indent by four spaces per level of nesting, do
---  not sort objects by key.
+--  not sort objects by key, do not sort values in arrays.
 --
 --  > defConfig = Config { confIndent = Spaces 4
---                       , confCompare = mempty
---                       , confNumFormat = Generic
---                       , confValueCompare = mempty
---                       }
+--  >                    , confCompare = mempty
+--  >                    , confNumFormat = Generic
+--  >                    , confValueCompare = mempty
+--  >                    }
 defConfig :: Config
 defConfig =
   Config {confIndent = Spaces 4, confCompare = mempty
@@ -182,6 +239,10 @@ encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
     arraySortFn = sortBy confValueCompare
 
 
+mkKeySorter :: (Text -> Text -> Ordering) -> KeySorter
+mkKeySorter txtCompare = sortBy (txtCompare `on` fst)
+
+
 fromValue :: PState -> Value -> Builder
 fromValue st@PState{..} = go
   where
@@ -222,12 +283,13 @@ fromNumber st x = case pNumFormat st of
   Custom f   -> f x
 
 
+-- used to for sorting Values
 data OrdValue = OrdValue KeySorter Value
 
 instance Eq OrdValue where
   (OrdValue _ x) == (OrdValue _ y) = x == y
 
-
+-- OrdValues are sorted by Null < Bool < Number < String < Array < Object
 instance Ord OrdValue where
   compare (OrdValue _ Null) (OrdValue _ Null) = EQ
   compare (OrdValue _ Null) _                 = LT
@@ -259,9 +321,9 @@ toListOrderedByKeys :: KeySorter -> Object -> [(Text, OrdValue)]
 toListOrderedByKeys ks obj =
   map (\(k, v) -> (k, OrdValue ks v)) $ ks $ H.toList obj
 
-mkKeySorter :: (Text -> Text -> Ordering) -> KeySorter
-mkKeySorter txtCompare = sortBy (txtCompare `on` fst)
-
+-- | Given a text comparison function for sorting keys in an object,
+--   makes a 'Value' comparison function
+--   that may be used to order values in arrays.
 mkBasicValueCompare ::  (Text -> Text -> Ordering) -> Value -> Value -> Ordering
 mkBasicValueCompare txtCompare x y = compare (OrdValue ks x) (OrdValue ks y)
   where
