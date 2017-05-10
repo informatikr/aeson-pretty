@@ -197,7 +197,9 @@ fromIndent PState{..} = mconcat (replicate pLevel pIndent)
 
 fromNumber :: PState -> S.Scientific -> Builder
 fromNumber st x = case pNumFormat st of
-  Generic    -> Aeson.encodeToTextBuilder $ Number x
+  Generic
+    | (x > 1.0e19 || x < -1.0e19) -> formatScientificBuilder S.Exponent Nothing x
+    | otherwise -> Aeson.encodeToTextBuilder $ Number x
   Scientific -> formatScientificBuilder S.Exponent Nothing x
   Decimal    -> formatScientificBuilder S.Fixed Nothing x
   Custom f   -> f x
