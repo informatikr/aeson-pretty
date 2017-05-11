@@ -1,5 +1,5 @@
 name:           aeson-pretty
-version:        0.8.2
+version:        0.8.3
 license:        BSD3
 license-file:   LICENSE
 category:       Text, Web, JSON, Pretty Printer
@@ -37,7 +37,7 @@ flag lib-only
 
 library
     exposed-modules:
-        Data.Aeson.Encode.Pretty
+        Data.Aeson.Encode.Pretty                    
 
     build-depends:
         aeson >= 0.7,
