@@ -80,7 +80,6 @@ data PState = PState { pLevel     :: Int
                      , pKeyValSep :: Builder
                      , pNumFormat :: NumberFormat
                      , pSort      :: [(Text, Value)] -> [(Text, Value)]
-                     , pTrail     :: Builder
                      }
 
 -- | Indentation per level of nesting. @'Spaces' 0@ removes __all__ whitespace
@@ -150,9 +149,9 @@ encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
 -- |A variant of 'encodeToTextBuilder' that takes an additional configuration
 --  parameter.
 encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
-encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
+encodePrettyToTextBuilder' Config{..} x = fromValue st (toJSON x) <> trail
   where
-    st      = PState 0 indent newline itemSep kvSep confNumFormat sortFn trail
+    st      = PState 0 indent newline itemSep kvSep confNumFormat sortFn
     indent  = case confIndent of
                 Spaces n -> mconcat (replicate n " ")
                 Tab      -> "\t"
@@ -168,7 +167,7 @@ encodePrettyToTextBuilder' Config{..} = fromValue st . toJSON
 
 
 fromValue :: PState -> Value -> Builder
-fromValue st@PState{..} val = go val <> pTrail
+fromValue st@PState{..} val = go val
   where
     go (Array v)  = fromCompound st ("[","]") fromValue (V.toList v)
     go (Object m) = fromCompound st ("{","}") fromPair (pSort (H.toList m))
@@ -190,7 +189,7 @@ fromCompound st@PState{..} (delimL,delimR) fromItem items = mconcat
     items' = mconcat . intersperse (pItemSep <> pNewline) $
                 map (\item -> fromIndent st' <> fromItem st' item)
                     items
-    st' = st { pLevel = pLevel + 1, pTrail = "" }
+    st' = st { pLevel = pLevel + 1}
 
 fromPair :: PState -> (Text, Value) -> Builder
 fromPair st (k,v) =
