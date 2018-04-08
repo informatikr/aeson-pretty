@@ -1,0 +1,8 @@
+resolver: nightly-2018-04-08
+packages:
+- '.'
+extra-deps:
+flags:
+  aeson-pretty:
+    lib-only: false
+extra-package-dbs: []

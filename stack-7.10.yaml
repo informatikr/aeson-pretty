@@ -1,0 +1,8 @@
+resolver: lts-5.1
+packages:
+- '.'
+extra-deps:
+flags:
+  aeson-pretty:
+    lib-only: false
+extra-package-dbs: []
