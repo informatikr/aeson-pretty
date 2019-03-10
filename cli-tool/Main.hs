@@ -2,16 +2,22 @@
 module Main (main) where
 
 import Prelude hiding (interact, concat, unlines, null)
+import Control.Exception (bracket)
+import Control.Monad (forM_)
 import Data.Aeson (Value(..), json', encode)
 import Data.Aeson.Encode.Pretty
 import Data.Attoparsec.Lazy (Result(..), parse)
-import Data.ByteString.Lazy.Char8 (ByteString, interact, unlines, null)
+import Data.ByteString.Lazy.Char8 (ByteString, interact, unlines, null, hPut, hGetContents)
 import Data.Version (showVersion)
 import Paths_aeson_pretty (version)
 import System.Console.CmdArgs
+import System.Directory (renameFile)
+import System.FilePath (splitFileName, replaceExtension)
+import System.IO (IOMode(ReadMode), hClose, openBinaryTempFileWithDefaultPermissions, withFile)
 
 
-data Options = Opts { compact :: Bool
+data Options = Opts { source  :: [FilePath]
+                    , compact :: Bool
                     , indent  :: Int
                     , sort    :: Bool
                     }
@@ -19,7 +25,8 @@ data Options = Opts { compact :: Bool
 
 opts :: Options
 opts = Opts
-    { compact = False &= help "Compact output."
+    { source  = def   &= args
+    , compact = False &= help "Compact output."
     , indent  = 4     &= help "Number of spaces per nesting-level (default 4)."
     , sort    = False &= help "Sort objects by key (default: undefined order)."
     }   &= program prog
@@ -33,6 +40,8 @@ info :: [String]
 info =
     [ "Read JSON from stdin and pretty-print to stdout. The complementary "
     , "compact-mode removes whitespace from the input."
+    , ""
+    , "If one or more files are specified, the files will be prettified in place. No backups are made."
     , ""
     , "(c) Falko Peters 2011"
     , ""
@@ -50,7 +59,9 @@ main = do
                       , confTrailingNewline = False
                       }
         enc = if compact then encode else encodePretty' conf
-    interact $ unlines . map enc . values
+    case source of
+      [] -> interact $ unlines . map enc . values
+      _ -> forM_ source (\path -> inplace path $ unlines . map enc . values)
 
 values :: ByteString -> [Value]
 values s = case parse json' s of
@@ -58,3 +69,19 @@ values s = case parse json' s of
             Fail rest _ _
                 | null rest -> []
                 | otherwise -> error "invalid json"
+
+inplace :: FilePath -> (ByteString -> ByteString) -> IO ()
+inplace path interaction = do
+    tempPath <- bracket acquire release execute
+    renameFile tempPath path
+  where
+    (tempDir, tempName) = splitFileName path
+    tempPattern = replaceExtension tempName ".XXXXX"
+    acquire = openBinaryTempFileWithDefaultPermissions tempDir tempPattern
+    execute (tempPath, tempHandle) = do
+        withFile path ReadMode $ \readHandle -> do
+            contents <- hGetContents readHandle
+            hPut tempHandle $ interaction contents
+        return tempPath
+    release (_, tempHandle) = hClose tempHandle
+
