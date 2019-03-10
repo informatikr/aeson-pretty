@@ -2,7 +2,7 @@
 module Main (main) where
 
 import Prelude hiding (interact, concat, unlines, null)
-import Control.Exception (bracket)
+import Control.Exception (bracketOnError)
 import Control.Monad (forM_)
 import Data.Aeson (Value(..), json', encode)
 import Data.Aeson.Encode.Pretty
@@ -11,7 +11,7 @@ import Data.ByteString.Lazy.Char8 (ByteString, interact, unlines, null, hPut, hG
 import Data.Version (showVersion)
 import Paths_aeson_pretty (version)
 import System.Console.CmdArgs
-import System.Directory (renameFile)
+import System.Directory (removeFile, renameFile)
 import System.FilePath (splitFileName, replaceExtension)
 import System.IO (IOMode(ReadMode), hClose, openBinaryTempFileWithDefaultPermissions, withFile)
 
@@ -72,7 +72,7 @@ values s = case parse json' s of
 
 inplace :: FilePath -> (ByteString -> ByteString) -> IO ()
 inplace path interaction = do
-    tempPath <- bracket acquire release execute
+    tempPath <- bracketOnError acquire failure execute
     renameFile tempPath path
   where
     (tempDir, tempName) = splitFileName path
@@ -82,6 +82,9 @@ inplace path interaction = do
         withFile path ReadMode $ \readHandle -> do
             contents <- hGetContents readHandle
             hPut tempHandle $ interaction contents
+        hClose tempHandle
         return tempPath
-    release (_, tempHandle) = hClose tempHandle
+    failure (tempPath, tempHandle) = do
+        hClose tempHandle
+        removeFile tempPath
 
