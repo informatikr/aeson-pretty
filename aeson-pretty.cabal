@@ -1,5 +1,5 @@
 name:           aeson-pretty
-version:        0.8.7
+version:        0.8.8
 license:        BSD3
 license-file:   LICENSE
 category:       Text, Web, JSON, Pretty Printer
