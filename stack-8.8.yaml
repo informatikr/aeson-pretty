@@ -1,11 +1,8 @@
-resolver: lts-6.35
+resolver: nightly-2019-09-28
 packages:
 - '.'
 extra-deps:
-- semigroups-0.18.2
 flags:
   aeson-pretty:
     lib-only: false
-  semigroups:
-    bytestring-builder: false
 extra-package-dbs: []
