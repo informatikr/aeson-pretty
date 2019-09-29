@@ -55,7 +55,7 @@ module Data.Aeson.Encode.Pretty (
 ) where
 
 import Data.Aeson (Value(..), ToJSON(..))
-import qualified Data.Aeson.Encode as Aeson
+import qualified Data.Aeson.Text as Aeson
 import Data.ByteString.Lazy (ByteString)
 import Data.Function (on)
 import qualified Data.HashMap.Strict as H (toList)
