@@ -27,6 +27,11 @@ description:
         > cabal install -flib-only aeson-pretty
     .
     the command-line tool will NOT be installed.
+    .
+    For those wishing to prettify JSON in their source repos, you can now pass
+    multiple paths using @find@ or @xargs@ and they will be processed in place.
+    No backups are made, so this is best used with a VCS.
+    .
 
 extra-source-files:
     README.markdown
@@ -69,7 +74,9 @@ executable aeson-pretty
             attoparsec >= 0.10,
             base == 4.*,
             bytestring >= 0.9,
-            cmdargs >= 0.7
+            cmdargs >= 0.7,
+            directory,
+            filepath
 
     ghc-options: -Wall
     ghc-prof-options: -auto-all
