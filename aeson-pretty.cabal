@@ -1,12 +1,12 @@
 cabal-version:  2.0
 name:           aeson-pretty
-version:        0.8.8
+version:        0.8.9
 license:        BSD3
 license-file:   LICENSE
 category:       Text, Web, JSON, Pretty Printer
 copyright:      Copyright 2011 Falko Peters
 author:         Falko Peters <falko.peters@gmail.com>
-maintainer:     Falko Peters <falko.peters@gmail.com>
+maintainer:     Martijn Bastiaan <martijn@hmbastiaan.nl>
 stability:      experimental
 homepage:       http://github.com/informatikr/aeson-pretty
 bug-reports:    http://github.com/informatikr/aeson-pretty/issues
@@ -30,6 +30,7 @@ description:
 
 extra-source-files:
     README.markdown
+    CHANGELOG.markdown
 
 flag lib-only
     description: Only build/install the library, NOT the command-line tool.
