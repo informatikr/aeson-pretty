@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, CPP #-}
 
 -- |Aeson-compatible pretty-printing of JSON 'Value's.
 module Data.Aeson.Encode.Pretty (
@@ -54,11 +54,15 @@ module Data.Aeson.Encode.Pretty (
     keyOrder
 ) where
 
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.Key as AK
+import qualified Data.Aeson.KeyMap as AKM
+#endif
 import Data.Aeson (Value(..), ToJSON(..))
 import qualified Data.Aeson.Text as Aeson
 import Data.ByteString.Lazy (ByteString)
 import Data.Function (on)
-import qualified Data.HashMap.Strict as H (toList)
+import qualified Data.HashMap.Strict as H (toList, mapKeys)
 import Data.List (intersperse, sortBy, elemIndex)
 import Data.Maybe (fromMaybe)
 import Data.Semigroup ((<>))
@@ -170,9 +174,15 @@ fromValue :: PState -> Value -> Builder
 fromValue st@PState{..} val = go val
   where
     go (Array v)  = fromCompound st ("[","]") fromValue (V.toList v)
-    go (Object m) = fromCompound st ("{","}") fromPair (pSort (H.toList m))
+    go (Object m) = fromCompound st ("{","}") fromPair (pSort (toList' m))
     go (Number x) = fromNumber st x
     go v          = Aeson.encodeToTextBuilder v
+
+#if MIN_VERSION_aeson(2,0,0)
+    toList' = fmap (\(k, v) -> (AK.toText k, v)) . AKM.toList
+#else
+    toList' = H.toList
+#endif
 
 fromCompound :: PState
              -> (Builder, Builder)
