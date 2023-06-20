@@ -2,8 +2,9 @@
 module Main (main) where
 
 import Prelude hiding (interact, concat, unlines, null)
-import Data.Aeson (Value(..), json', encode)
+import Data.Aeson (Value(..), encode)
 import Data.Aeson.Encode.Pretty
+import Data.Aeson.Parser.Internal (value')
 import Data.Attoparsec.Lazy (Result(..), parse)
 import Data.ByteString.Lazy.Char8 (ByteString, interact, unlines, null)
 import Data.Version (showVersion)
@@ -53,7 +54,7 @@ main = do
     interact $ unlines . map enc . values
 
 values :: ByteString -> [Value]
-values s = case parse json' s of
+values s = case parse value' s of
             Done rest v     -> v : values rest
             Fail rest _ _
                 | null rest -> []
