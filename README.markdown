@@ -20,4 +20,4 @@ Master [git repository](http://github.com/informatikr/aeson-pretty):
 
 # Authors
 
-This library is written and maintained by Falko Peters, <falko.peters@gmail.com>.
+This library is written by Falko Peters <falko.peters@gmail.com> and maintained by Martijn Bastiaan <martijn@qbaylogic.com>.
