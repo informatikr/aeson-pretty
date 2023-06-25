@@ -1,0 +1,127 @@
+name: aeson-pretty-ci
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  ghcs:
+    name: GHC ${{ matrix.ghc }} / Aeson latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["ubuntu-22.04"]
+        ghc: ["9.6.2", "9.4.3", "9.2.8", "9.0.2", "8.10.7", "8.8.4", "8.6.5", "8.4.4", "8.2.2"]
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Haskell
+        uses: haskell/actions/setup@v2
+        id: setup-haskell
+        with:
+          ghc-version: ${{ matrix.ghc }}
+
+      - name: Setup CI
+        run: |
+          cabal v2-freeze
+          mv cabal.project.freeze frozen
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.setup-haskell.outputs.cabal-store }}
+          key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-${{ hashFiles('frozen') }}
+          restore-keys: |
+            ${{ runner.os }}-ghc-${{ matrix.ghc }}-${{ hashFiles('frozen') }}
+            ${{ runner.os }}-ghc-${{ matrix.ghc }}-
+
+      - name: Build
+        run: |
+          cabal v2-update
+          cabal v2-build all --enable-tests
+
+  aesons:
+    name: GHC ${{ matrix.ghc }} / Aeson ${{ matrix.aeson }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["ubuntu-22.04"]
+        ghc: ["8.2.2"]
+        aeson: ["1.1", "1.2", "1.3", "1.4", "1.5", "2.0", "2.1"]
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Haskell
+        uses: haskell/actions/setup@v2
+        id: setup-haskell
+        with:
+          ghc-version: ${{ matrix.ghc }}
+
+      - name: Setup CI
+        run: |
+          cabal v2-freeze --constraint="aeson ^>= ${{ matrix.aeson }}"
+          mv cabal.project.freeze frozen
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.setup-haskell.outputs.cabal-store }}
+          key: ${{ runner.os }}-aeson-${{ matrix.aeson }}-${{ hashFiles('frozen') }}
+          restore-keys: |
+            ${{ runner.os }}-aeson-${{ matrix.aeson }}-${{ hashFiles('frozen') }}
+            ${{ runner.os }}-aeson-${{ matrix.aeson }}-
+
+      - name: Build
+        run: |
+          cabal v2-update
+          cabal v2-build all --enable-tests --constraint="aeson ^>= ${{ matrix.aeson }}"
+
+  # Mandatory check on GitHub
+  all:
+    name: All jobs finished
+    if: always()
+    needs: [
+        aesons,
+        ghcs
+      ]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Check dependencies for failures
+        run: |
+          # Test all dependencies for success/failure
+          set -x
+          success="${{ contains(needs.*.result, 'success') }}"
+          fail="${{ contains(needs.*.result, 'failure') }}"
+          set +x
+
+          # Test whether success/fail variables contain sane values
+          if [[ "${success}" != "true" && "${success}" != "false" ]]; then exit 1; fi
+          if [[ "${fail}"    != "true" && "${fail}"    != "false" ]]; then exit 1; fi
+
+          # We want to fail if one or more dependencies fail. For safety, we introduce
+          # a second check: if no dependencies succeeded something weird is going on.
+          if [[ "${fail}" == "true" || "${success}" == "false" ]]; then
+            echo "One or more dependency failed, or no dependency succeeded."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install python3-yaml
+
+      - name: Check that the 'all' job depends on all other jobs
+        run: |
+          .github/scripts/all_check.py

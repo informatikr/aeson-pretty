@@ -1,7 +1,5 @@
 # Welcome to aeson-pretty
 
-[![Build Status](https://travis-ci.org/informatikr/aeson-pretty.svg?branch=master)](https://travis-ci.org/informatikr/aeson-pretty)
-
 This is a JSON pretty-printing Haskell library compatible with [aeson](http://hackage.haskell.org/package/aeson) as well as a command-line tool to improve readabilty of streams of JSON data.
 
 The **library** provides a single function `encodePretty`. It is a drop-in replacement for aeson's `encode` function, producing JSON-ByteStrings for human readers.
