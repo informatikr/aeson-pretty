@@ -18,6 +18,9 @@ Master [git repository](http://github.com/informatikr/aeson-pretty):
 
 * `git clone git://github.com/informatikr/aeson-pretty.git`
 
+# Aeson / GHC support
+We support all GHCs supported by the latest Aeson release. This in turn determines which Aeson releases we support.
+
 # Authors
 
 This library is written by Falko Peters <falko.peters@gmail.com> and maintained by Martijn Bastiaan <martijn@qbaylogic.com>.
