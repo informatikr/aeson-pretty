@@ -61,6 +61,7 @@ executable aeson-pretty
     hs-source-dirs: cli-tool
     main-is: Main.hs
     other-modules: Paths_aeson_pretty
+    autogen-modules: Paths_aeson_pretty
 
     if flag(lib-only)
         buildable: False
