@@ -62,10 +62,14 @@ import Data.Aeson (Value(..), ToJSON(..))
 import qualified Data.Aeson.Text as Aeson
 import Data.ByteString.Lazy (ByteString)
 import Data.Function (on)
-import qualified Data.HashMap.Strict as H (toList, mapKeys)
+#if !MIN_VERSION_aeson(2,0,0)
+import qualified Data.HashMap.Strict as H (toList)
+#endif
 import Data.List (intersperse, sortBy, elemIndex)
 import Data.Maybe (fromMaybe)
+#if !MIN_VERSION_base(4,13,0)
 import Data.Semigroup ((<>))
+#endif
 import qualified Data.Scientific as S (Scientific, FPFormat(..))
 import Data.Ord (comparing)
 import Data.Text (Text)

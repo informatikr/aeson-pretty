@@ -30,6 +30,7 @@ jobs:
 
       - name: Setup CI
         run: |
+          sed -i 's/-Wall/-Wall -Werror/g' aeson-pretty.cabal
           cabal v2-freeze
           mv cabal.project.freeze frozen
 
@@ -68,6 +69,7 @@ jobs:
 
       - name: Setup CI
         run: |
+          sed -i 's/-Wall/-Wall -Werror/g' aeson-pretty.cabal
           cabal v2-freeze --constraint="aeson ^>= ${{ matrix.aeson }}"
           mv cabal.project.freeze frozen
 
