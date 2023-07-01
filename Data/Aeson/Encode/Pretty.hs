@@ -150,7 +150,7 @@ encodePretty' conf = encodeUtf8 . toLazyText . encodePrettyToTextBuilder' conf
 encodePrettyToTextBuilder :: ToJSON a => a -> Builder
 encodePrettyToTextBuilder = encodePrettyToTextBuilder' defConfig
 
--- |A variant of 'encodeToTextBuilder' that takes an additional configuration
+-- |A variant of 'Aeson.encodeToTextBuilder' that takes an additional configuration
 --  parameter.
 encodePrettyToTextBuilder' :: ToJSON a => Config -> a -> Builder
 encodePrettyToTextBuilder' Config{..} x = fromValue st (toJSON x) <> trail
