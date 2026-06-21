@@ -1,10 +1,14 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, RecordWildCards, OverloadedStrings, PackageImports #-}
 module Main (main) where
 
 import Prelude hiding (interact, concat, unlines, null)
 import Data.Aeson (Value(..), encode)
 import Data.Aeson.Encode.Pretty
-import Data.Aeson.Parser.Internal (value')
+#if MIN_VERSION_aeson(2,2,0)
+import "attoparsec-aeson" Data.Aeson.Parser.Internal (value')
+#else
+import "aeson" Data.Aeson.Parser.Internal (value')
+#endif
 import Data.Attoparsec.Lazy (Result(..), parse)
 import Data.ByteString.Lazy.Char8 (ByteString, interact, unlines, null)
 import Data.Version (showVersion)
