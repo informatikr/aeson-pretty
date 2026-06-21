@@ -26,6 +26,8 @@ description:
 
 extra-source-files:
     README.markdown
+
+extra-doc-files:
     CHANGELOG.markdown
 
 flag lib-only
