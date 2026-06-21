@@ -39,7 +39,7 @@ library
 
     build-depends:
         aeson >=1.5  && <2.4,
-        base >= 4.5,
+        base >= 4.10 && < 4.23,
         base-compat >= 0.9,
         bytestring >= 0.9,
         scientific >= 0.3,
@@ -64,7 +64,7 @@ executable aeson-pretty
             aeson-pretty,
             attoparsec >= 0.10,
             attoparsec-aeson,
-            base == 4.*,
+            base >= 4.10 && < 4.23,
             bytestring >= 0.9,
             cmdargs >= 0.7
 
