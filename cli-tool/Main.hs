@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, RecordWildCards, OverloadedStrings #-}
 module Main (main) where
 
 import Prelude hiding (interact, concat, unlines, null)
@@ -16,7 +16,11 @@ data Options = Opts { compact :: Bool
                     , indent  :: Int
                     , sort    :: Bool
                     }
+#if __GLASGOW_HASKELL__ >= 912
+    deriving (Data)
+#else
     deriving (Data, Typeable)
+#endif
 
 opts :: Options
 opts = Opts
