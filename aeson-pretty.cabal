@@ -14,7 +14,7 @@ build-type:     Simple
 synopsis:       JSON pretty-printing library and command-line tool.
 description:
     A JSON pretty-printing library compatible with aeson as well as
-    a command-line tool to improve readabilty of streams of JSON data.
+    a command-line tool to improve readability of streams of JSON data.
     .
     The /library/ provides the function "encodePretty". It is a drop-in
     replacement for aeson's "encode" function, producing JSON-ByteStrings for
