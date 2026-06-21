@@ -95,10 +95,11 @@ data PState = PState { pLevel     :: Int
 data Indent = Spaces Int | Tab
 
 data NumberFormat
-  -- | The standard behaviour of the 'Aeson.encode' function. Uses
-  --   integer literals for integers (1, 2, 3...), simple decimals
-  --   for fractional values between 0.1 and 9,999,999, and scientific
-  --   notation otherwise.
+  -- | For numbers with absolute value less than 1e19, this follows the standard
+  -- behaviour of the 'Data.Aeson.encode' function. Uses integer literals for
+  -- integers (1, 2, 3...), simple decimals for fractional values between 0.1
+  -- and 9,999,999, and scientific notation otherwise. For numbers with an
+  -- absolute value larger than 1e19, always uses scientific notation.
   = Generic
   -- | Scientific notation (e.g. 2.3e123).
   | Scientific
