@@ -22,11 +22,7 @@ description:
     .
     The /command-line tool/ reads JSON from stdin and writes prettified JSON
     to stdout. It also offers a complementary "compact"-mode, essentially the
-    opposite of pretty-printing. If you specify @-flib-only@ like this
-    .
-        > cabal install -flib-only aeson-pretty
-    .
-    the command-line tool will NOT be installed.
+    opposite of pretty-printing.
 
 extra-source-files:
     README.markdown
