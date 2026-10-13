@@ -8,7 +8,7 @@ module Data.Aeson.Encode.Pretty (
     -- * Pretty-Printing with Configuration Options
     encodePretty', encodePrettyToTextBuilder',
     Config (..), defConfig,
-    Indent(..), NumberFormat(..),
+    Indent(..), NumberFormat(..), LineTerminator(..),
     -- ** Sorting Keys in Objects
     -- |With the Aeson library, the order of keys in objects is undefined due to
     --  objects being implemented as HashMaps. To allow user-specified key
@@ -108,6 +108,13 @@ data NumberFormat
   -- | Custom formatting function
   | Custom (S.Scientific -> Builder)
 
+-- | How to terminate a line
+data LineTerminator
+  -- | @\n@ (Unix)
+  = LF
+  -- | @\r\n@ (Dos)
+  | CRLF
+
 data Config = Config
     { confIndent  :: Indent
       -- ^ Indentation per level of nesting
@@ -116,6 +123,7 @@ data Config = Config
     , confNumFormat :: NumberFormat
     , confTrailingNewline :: Bool
       -- ^ Whether to add a trailing newline to the output
+    , confLineTerminator :: LineTerminator
     }
 
 -- |Sort keys by their order of appearance in the argument list.
@@ -134,7 +142,7 @@ keyOrder ks = comparing $ \k -> fromMaybe maxBound (elemIndex k ks)
 --  > defConfig = Config { confIndent = Spaces 4, confCompare = mempty, confNumFormat = Generic, confTrailingNewline = False }
 defConfig :: Config
 defConfig =
-  Config {confIndent = Spaces 4, confCompare = mempty, confNumFormat = Generic, confTrailingNewline = False}
+  Config {confIndent = Spaces 4, confCompare = mempty, confNumFormat = Generic, confTrailingNewline = False, confLineTerminator = LF}
 
 -- |A drop-in replacement for aeson's 'Aeson.encode' function, producing
 --  JSON-ByteStrings for human readers.
@@ -166,13 +174,16 @@ encodePrettyToTextBuilder' Config{..} x = fromValue st (toJSON x) <> trail
                 Tab      -> "\t"
     newline = case confIndent of
                 Spaces 0 -> ""
-                _        -> "\n"
+                _        -> lnTerm
     itemSep = ","
     kvSep   = case confIndent of
                 Spaces 0 -> ":"
                 _        -> ": "
     sortFn  = sortBy (confCompare `on` fst)
-    trail   = if confTrailingNewline then "\n" else ""
+    trail   = if confTrailingNewline then lnTerm else ""
+    lnTerm  = case confLineTerminator of
+                LF -> "\n"
+                CRLF -> "\r\n"
 
 
 fromValue :: PState -> Value -> Builder

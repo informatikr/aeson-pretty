@@ -57,6 +57,7 @@ main = do
                       , confCompare         = if sort then compare else mempty
                       , confNumFormat       = Generic
                       , confTrailingNewline = False
+                      , confLineTerminator  = LF
                       }
         enc = if compact then encode else encodePretty' conf
     interact $ unlines . map enc . values
